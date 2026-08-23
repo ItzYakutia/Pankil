@@ -101,6 +101,12 @@ body{
   text-transform:none;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 @media(max-width:560px){ .card h2{letter-spacing:.1em} }
+.okmark{
+  flex:none;display:grid;place-items:center;width:18px;height:18px;border-radius:6px;
+  background:rgba(58,217,145,.16);color:var(--green);
+  font:800 11px "Manrope",sans-serif;letter-spacing:0;
+}
+.okmark[hidden]{display:none}
 .chev{margin-left:8px;color:var(--muted);font-size:10px;transition:transform .18s;flex:none}
 .card.folded .chev{transform:rotate(-90deg)}
 .card-points{border-color:rgba(242,181,68,.28);box-shadow:0 6px 26px rgba(242,181,68,.07)}
@@ -405,7 +411,9 @@ input.name{font-family:inherit;font-weight:700}
       </div>
 
       <div class="card fold" data-fold="mults">
-        <h2><span class="ic">◆</span> Множители (КМ) <span class="h2-hint" id="hint-mults"></span><span class="chev">▾</span></h2>
+        <h2><span class="ic">◆</span> Множители (КМ)
+          <span class="okmark" id="mark-mults" hidden title="На этих множителях цель берётся за два хода">✓</span>
+          <span class="h2-hint" id="hint-mults"></span><span class="chev">▾</span></h2>
         <div class="card-body">
           <div class="chips" id="mults"></div>
           <div class="addrow">
@@ -893,6 +901,7 @@ function calc(){
   $("#c-all").textContent  = "(" + all.total  + ")";
   $("#c-noad").textContent = "(" + noad.total + ")";
   document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
+  $("#mark-mults").hidden = !all.exact.some(s=>s.moves.length === 2);
   $("#b-view").classList.toggle("on", state.view === "full");
 
   const r = resTab === "noad" ? noad : all;
