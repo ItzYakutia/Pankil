@@ -86,6 +86,34 @@ grp('3. Полнота: не теряются ли верные варианты
               (missing.length ? ' (обрезано, счётчик показывает '+r.total+')' : ' — все'));
 });
 
+grp('3б. Обрезка списка отдаёт именно самые выгодные варианты');
+[
+  acc({mults:[41557,32112,32099,24776,24763,24422,24409,12606,12593,7445], ad:137, target:987654321}),
+  acc({mults:[60820,43677,36785,27248,20367,9770], ad:13, grail:true, grailPct:8, target:152681196}),
+].forEach((a,i)=>{
+  /* полный перебор всех решений + та же сортировка, что в калькуляторе */
+  const R = Math.round(a.target)-Math.round(a.cur);
+  const vs = variants(a); const all=[];
+  for(const v of vs) if(R%v.v===0 && R/v.v>=3) all.push({n:1,mx:R/v.v,tt:R/v.v,k:v.base+':'+(v.useAd?1:0)+':'+(R/v.v)});
+  for(let p1=0;p1<vs.length;p1++) for(let q1=p1;q1<vs.length;q1++){
+    const A=vs[p1],B=vs[q1]; if(A.v===B.v) continue;
+    for(let x=3; A.v*x<=R-3*B.v; x++){
+      const rem=R-A.v*x; if(rem%B.v) continue; const y=rem/B.v; if(y<3) continue;
+      all.push({n:2,mx:Math.max(x,y),tt:x+y,
+        k:[A.base+':'+(A.useAd?1:0)+':'+x, B.base+':'+(B.useAd?1:0)+':'+y].sort().join('|')});
+    }
+  }
+  all.sort((u,w)=> u.n-w.n || u.mx-w.mx || u.tt-w.tt);
+  const r = solve(a,false);
+  const wantMax = all.slice(0, r.exact.length).map(u=>u.mx);
+  const gotMax  = r.exact.map(s=>s.maxC);
+  ok(JSON.stringify(wantMax) === JSON.stringify(gotMax),
+     'обрезка '+(i+1)+': показаны не самые выгодные варианты');
+  console.log('  кейс '+(i+1)+': из '+all.length+' показано '+r.exact.length+
+              ', максимум очков за ход в списке от '+gotMax[0]+' до '+gotMax[gotMax.length-1]+
+              ' (в полном переборе — от '+wantMax[0]+' до '+wantMax[wantMax.length-1]+')');
+});
+
 grp('4. Вкладка «Без рекламы»');
 [cases[0], cases[2], cases[4]].forEach((a,i)=>{
   const r = solve(a,true);

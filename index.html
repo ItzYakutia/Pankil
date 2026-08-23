@@ -548,7 +548,7 @@ function exactXs(a,b,R,cap,lo,hi){
   return out;
 }
 const MINC  = 3;    /* меньше трёх очков за один ход в игре не набрать */
-const SHOWN = 200;  /* сколько вариантов показываем, если их найдено больше */
+const SHOWN = 100;  /* сколько вариантов показываем, если их найдено больше */
 function keyOf(sol){
   return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
 }
@@ -584,7 +584,7 @@ function solve(a, noAd){
       const A = vs[i], B = vs[j];
       if(A.v === B.v) continue;            /* один и тот же КМ дважды — это тот же ход */
       const hi = Math.floor((R - MINC*B.v)/A.v);
-      const xs = exactXs(A.v, B.v, R, 80, MINC, hi);
+      const xs = exactXs(A.v, B.v, R, SHOWN, MINC, hi);
       res.total += xs.total;
       for(const x of xs){
         const y = (R - A.v*x)/B.v;
@@ -816,8 +816,8 @@ function calc(){
       ? r.exact.map(solHtml).join("")
       : '<div class="rows">' + r.exact.map(rowHtml).join("") + '</div>')
       + (r.total > r.exact.length
-          ? '<div class="note">Показаны ' + fmt(r.exact.length) + ' вариантов из ' + fmt(r.total)
-            + ' — те, где за ход нужно набрать меньше всего очков.</div>'
+          ? '<div class="note">Показаны ' + fmt(r.exact.length) + ' самых выгодных вариантов из '
+            + fmt(r.total) + ' — в них за ход нужно набрать меньше всего очков.</div>'
           : "");
   } else {
     el.innerHTML = '<div class="empty"><span class="big">∅</span>Точных вариантов за два хода нет.<br>Проверьте цель и множители.</div>';
