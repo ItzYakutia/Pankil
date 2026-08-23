@@ -579,7 +579,8 @@ function solve(a, noAd){
     }
     if(res.exact.length > 1500) break;
   }
-  res.exact.sort((p,q)=> p.maxC - q.maxC || p.totC - q.totC || p.moves.length - q.moves.length);
+  /* сначала варианты в один ход, потом парные — от меньшего числа очков за ход */
+  res.exact.sort((p,q)=> p.moves.length - q.moves.length || p.maxC - q.maxC || p.totC - q.totC);
   res.exact = res.exact.slice(0,60);
   return res;
 }
