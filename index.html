@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Copse&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <!-- счётчик посещений -->
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
         data-cf-beacon='{"token": "a1ec1f9cb68e43f68a3f4bee80d99cc6"}'></script>
@@ -29,7 +29,7 @@
   --gold2:#ffd88a;
   --green:#3ad991;
   --red:#ff7b72;
-  --mono:"Copse", Georgia, "Times New Roman", serif;
+  --mono:"Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
   --r:16px;
 }
 html,body{margin:0;padding:0}
@@ -44,6 +44,7 @@ body{
   min-height:100vh;
   -webkit-font-smoothing:antialiased;
   font-size:15px;
+  font-variant-numeric:tabular-nums;   /* цифры одной ширины, иначе числа гуляют */
 }
 .wrap{max-width:1180px;margin:0 auto;padding:22px 16px 64px}
 
