@@ -535,6 +535,7 @@ function exactXs(a,b,R,cap,lo,hi){
   }
   return out;
 }
+const MINC = 3;   /* меньше трёх очков за один ход в игре не набрать */
 function keyOf(sol){
   return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
 }
@@ -559,17 +560,19 @@ function solve(a, noAd){
 
   /* --- один ход --- */
   for(const v of vs){
-    if(R % v.v === 0) push(res.exact, mk([{base:v.base,useAd:v.useAd,v:v.v,count:R/v.v}]));
+    if(R % v.v === 0 && R/v.v >= MINC)
+      push(res.exact, mk([{base:v.base,useAd:v.useAd,v:v.v,count:R/v.v}]));
   }
   /* --- два хода: точные попадания --- */
   for(let i=0;i<vs.length;i++){
     for(let j=i;j<vs.length;j++){
       const A = vs[i], B = vs[j];
-      const hi = Math.floor((R - B.v)/A.v);
-      const xs = exactXs(A.v, B.v, R, 36, 1, hi);
+      if(A.v === B.v) continue;            /* один и тот же КМ дважды — это тот же ход */
+      const hi = Math.floor((R - MINC*B.v)/A.v);
+      const xs = exactXs(A.v, B.v, R, 36, MINC, hi);
       for(const x of xs){
         const y = (R - A.v*x)/B.v;
-        if(y < 1) continue;
+        if(y < MINC) continue;
         push(res.exact, mk([
           {base:A.base,useAd:A.useAd,v:A.v,count:x},
           {base:B.base,useAd:B.useAd,v:B.v,count:y}
