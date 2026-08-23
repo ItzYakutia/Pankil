@@ -101,12 +101,6 @@ body{
   text-transform:none;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 @media(max-width:560px){ .card h2{letter-spacing:.1em} }
-.okmark{
-  flex:none;display:grid;place-items:center;width:18px;height:18px;border-radius:6px;
-  background:rgba(58,217,145,.16);color:var(--green);
-  font:800 11px "Manrope",sans-serif;letter-spacing:0;
-}
-.okmark[hidden]{display:none}
 .okpill{
   display:inline-flex;align-items:center;gap:5px;flex:none;
   padding:3px 9px 3px 7px;border-radius:7px;
@@ -420,7 +414,7 @@ input.name{font-family:inherit;font-weight:700}
 
       <div class="card fold" data-fold="mults">
         <h2><span class="ic">◆</span> Множители (КМ)
-          <span class="okmark" id="mark-mults" hidden title="На этих множителях цель берётся за два хода">✓</span>
+          <span class="okpill" id="mark-mults" hidden><i>✓</i>Пара найдена</span>
           <span class="h2-hint" id="hint-mults"></span><span class="chev">▾</span></h2>
         <div class="card-body">
           <div class="chips" id="mults"></div>
@@ -913,6 +907,7 @@ function calc(){
   const hasPair = all.exact.some(s=>s.moves.length === 2);
   $("#mark-mults").hidden = !hasPair;
   $("#mark-points").hidden = !hasPair;
+  foldHints();
   $("#b-view").classList.toggle("on", state.view === "full");
 
   const r = resTab === "noad" ? noad : all;
@@ -1056,8 +1051,11 @@ function foldHints(){
   const a = acc();
   $("#hint-acc").textContent = state.fold.acc ? a.name : "";
   const n = a.mults.length;
+  /* на узком экране рядом с плашкой «Пара найдена» оставляем только счёт */
+  const tight = window.innerWidth < 560 && !$("#mark-mults").hidden;
   $("#hint-mults").textContent = state.fold.mults
-    ? (n ? n + " шт.: " + a.mults.slice(0,3).map(fmt).join(", ") + (n > 3 ? "…" : "") : "не заданы")
+    ? (n ? (tight ? n + " шт." : n + " шт.: " + a.mults.slice(0,3).map(fmt).join(", ") + (n > 3 ? "…" : ""))
+         : "не заданы")
     : "";
   if(state.fold.bonus){
     const parts = [];
