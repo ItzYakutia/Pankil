@@ -475,12 +475,19 @@ function escapeHtml(s){
 }
 
 /* ------------------------------------------------------------ math engine */
-/* Грааль даёт процент к базовому КМ; бонус рекламы прибавляется уже после. */
+/* Грааль даёт процент к базовому КМ; бонус рекламы прибавляется уже после.
+   Считаем на целых числах: 60820 * 1.005 в двоичной дроби даёт 60819.99…,
+   и обычное умножение теряло единицу на каждом втором проценте. */
+function withPercent(v, pct){
+  const pm = Math.round(num(pct) * 1000);            /* процент с точностью до 0.001 */
+  const n = Math.round(v) * (100000 + pm);
+  const q = Math.floor(n / 100000), rem = n - q*100000;
+  return q + (rem*2 >= 100000 ? 1 : 0);              /* .5 округляем вверх */
+}
 function effective(base, useAd, a){
-  let v = base;
-  if(a.grail && a.grailPct) v = v * (1 + a.grailPct/100);
-  v = Math.round(v);
-  if(useAd) v += Math.round(a.ad);
+  let v = Math.round(base);
+  if(a.grail && num(a.grailPct)) v = withPercent(v, a.grailPct);
+  if(useAd) v += Math.round(num(a.ad));
   return v;
 }
 function variants(a){
@@ -511,9 +518,12 @@ function modinv(a,m){
   if(r[0] !== 1) return null;
   return ((r[1]%m)+m)%m;
 }
-/* целые x из [lo..hi], при которых (R - a*x) делится на b; не больше cap штук */
+/* Целые x из [lo..hi], при которых (R - a*x) делится на b.
+   Решения идут арифметической прогрессией с шагом b/НОД. Если их больше cap,
+   берём окно вокруг равновесия x ≈ y: там самые ровные расклады, а число
+   очков за ход растёт в обе стороны от него. out.total — сколько всего есть. */
 function exactXs(a,b,R,cap,lo,hi){
-  const out = [];
+  const out = []; out.total = 0;
   if(hi < lo) return out;
   const g = gcd(a,b);
   if(R % g !== 0) return out;
@@ -525,24 +535,27 @@ function exactXs(a,b,R,cap,lo,hi){
   const first = x0 + k0*bp;
   if(first > hi) return out;
   const total = Math.floor((hi - first)/bp) + 1;
+  out.total = total;
   if(total <= cap){
     for(let k=0;k<total;k++) out.push(first + k*bp);
-  } else {
-    for(let i=0;i<cap;i++){
-      const k = Math.round(i*(total-1)/(cap-1));
-      out.push(first + k*bp);
-    }
+    return out;
   }
+  let kb = Math.round((R/(a+b) - first)/bp);          /* равновесие x ≈ y */
+  let from = kb - (cap >> 1);
+  if(from < 0) from = 0;
+  if(from + cap > total) from = total - cap;
+  for(let i=0;i<cap;i++) out.push(first + (from+i)*bp);
   return out;
 }
-const MINC = 3;   /* меньше трёх очков за один ход в игре не набрать */
+const MINC  = 3;    /* меньше трёх очков за один ход в игре не набрать */
+const SHOWN = 200;  /* сколько вариантов показываем, если их найдено больше */
 function keyOf(sol){
   return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
 }
 /* noAd = true -> искать только среди ходов без рекламы */
 function solve(a, noAd){
   const R = Math.max(0, Math.round(num(a.target)) - Math.round(num(a.cur)));
-  const res = { R:R, exact:[] };
+  const res = { R:R, exact:[], total:0 };
   if(R <= 0) return res;
   let vs = variants(a);
   if(noAd) vs = vs.filter(v=>!v.useAd);
@@ -560,8 +573,10 @@ function solve(a, noAd){
 
   /* --- один ход --- */
   for(const v of vs){
-    if(R % v.v === 0 && R/v.v >= MINC)
+    if(R % v.v === 0 && R/v.v >= MINC){
+      res.total++;
       push(res.exact, mk([{base:v.base,useAd:v.useAd,v:v.v,count:R/v.v}]));
+    }
   }
   /* --- два хода: точные попадания --- */
   for(let i=0;i<vs.length;i++){
@@ -569,7 +584,8 @@ function solve(a, noAd){
       const A = vs[i], B = vs[j];
       if(A.v === B.v) continue;            /* один и тот же КМ дважды — это тот же ход */
       const hi = Math.floor((R - MINC*B.v)/A.v);
-      const xs = exactXs(A.v, B.v, R, 36, MINC, hi);
+      const xs = exactXs(A.v, B.v, R, 80, MINC, hi);
+      res.total += xs.total;
       for(const x of xs){
         const y = (R - A.v*x)/B.v;
         if(y < MINC) continue;
@@ -577,14 +593,14 @@ function solve(a, noAd){
           {base:A.base,useAd:A.useAd,v:A.v,count:x},
           {base:B.base,useAd:B.useAd,v:B.v,count:y}
         ]));
-        if(res.exact.length > 1500) break;
+        if(res.exact.length > 6000) break;
       }
     }
-    if(res.exact.length > 1500) break;
+    if(res.exact.length > 6000) break;
   }
   /* сначала варианты в один ход, потом парные — от меньшего числа очков за ход */
   res.exact.sort((p,q)=> p.moves.length - q.moves.length || p.maxC - q.maxC || p.totC - q.totC);
-  res.exact = res.exact.slice(0,60);
+  res.exact = res.exact.slice(0, SHOWN);
   return res;
 }
 
@@ -775,8 +791,8 @@ function calc(){
   const R = all.R;
   $("#s-left").textContent = fmt(R);
   $("#s-target").textContent = fmt(Math.round(num(a.target)));
-  $("#c-all").textContent  = "(" + all.exact.length  + ")";
-  $("#c-noad").textContent = "(" + noad.exact.length + ")";
+  $("#c-all").textContent  = "(" + all.total  + ")";
+  $("#c-noad").textContent = "(" + noad.total + ")";
   document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
   $("#b-view").classList.toggle("on", state.view === "full");
 
@@ -796,9 +812,13 @@ function calc(){
   }
   const full = state.view === "full";
   if(r.exact.length){
-    el.innerHTML = full
+    el.innerHTML = (full
       ? r.exact.map(solHtml).join("")
-      : '<div class="rows">' + r.exact.map(rowHtml).join("") + '</div>';
+      : '<div class="rows">' + r.exact.map(rowHtml).join("") + '</div>')
+      + (r.total > r.exact.length
+          ? '<div class="note">Показаны ' + fmt(r.exact.length) + ' вариантов из ' + fmt(r.total)
+            + ' — те, где за ход нужно набрать меньше всего очков.</div>'
+          : "");
   } else {
     el.innerHTML = '<div class="empty"><span class="big">∅</span>Точных вариантов за два хода нет.<br>Проверьте цель и множители.</div>';
   }
