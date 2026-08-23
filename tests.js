@@ -1,6 +1,7 @@
-/* Тесты движка калькулятора: код берётся прямо из index.html */
-const fs=require('fs');
-const src=fs.readFileSync('/Applications/XAMPP/xamppfiles/htdocs/karasnew/index.html','utf8');
+/* Тесты движка калькулятора: код берётся прямо из index.html.
+   Запуск:  node tests.js  */
+const fs=require('fs'), path=require('path');
+const src=fs.readFileSync(path.join(__dirname,'index.html'),'utf8');
 eval(src.slice(src.indexOf('/* Грааль даёт процент'), src.indexOf('/* --------------------------------------------------- обмен аккаунтами */'))+`
 function num(v){if(typeof v==='number')return v;const s=String(v==null?'':v).replace(/\\s|\\u00a0|\\u202f/g,'').replace(',','.');const n=parseFloat(s);return isFinite(n)?n:0;}`);
 
