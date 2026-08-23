@@ -317,7 +317,7 @@ input.name{font-family:inherit;font-weight:700}
         </div>
         <div class="field">
           <label>Сколько нужно набрать</label>
-          <input type="text" inputmode="numeric" id="f-target" placeholder="152 681 196">
+          <input type="text" inputmode="numeric" id="f-target" placeholder="например 152 681 196">
         </div>
       </div>
 
@@ -427,11 +427,8 @@ function newAcc(name, src){
 let state;
 try { state = JSON.parse(localStorage.getItem(LS)) || null; } catch(e){ state = null; }
 if(!state || !state.accounts || !state.accounts.length){
-  const a = newAcc("Основной");
-  a.mults = [60820,43677,36785,27248,20367,9770];
-  a.ad = 13;
-  a.target = 152681196;
-  state = { accounts:[a], active:a.id };
+  state = { accounts:[newAcc("Основной")], active:null };
+  state.active = state.accounts[0].id;
 }
 if(!state.accounts.some(a=>a.id===state.active)) state.active = state.accounts[0].id;
 const save = () => { try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} };
@@ -742,13 +739,14 @@ function renderEff(){
   h += '</table>';
   el.innerHTML = h;
 }
+const showNum = v => (num(v) ? fmt(Math.round(num(v))) : "");
 function renderForm(){
   const a = acc();
   $("#f-name").value = a.name;
-  $("#f-cur").value = fmt(Math.round(num(a.cur)));
-  $("#f-target").value = fmt(Math.round(num(a.target)));
-  $("#f-ad").value = String(a.ad);
-  $("#f-grailpct").value = String(a.grailPct);
+  $("#f-cur").value = showNum(a.cur);
+  $("#f-target").value = showNum(a.target);
+  $("#f-ad").value = showNum(a.ad);
+  $("#f-grailpct").value = a.grailPct ? String(a.grailPct) : "";
   segSet("#seg-grail", a.grail ? "1" : "0");
   $("#wrap-grailpct").style.display = a.grail ? "" : "none";
   refreshGrailHint();
@@ -845,7 +843,7 @@ function bindNum(sel, key, extra){
   el.addEventListener("blur",  ()=>{
     const a = acc();
     a[key] = num(el.value);
-    el.value = fmt(Math.round(a[key]));
+    el.value = showNum(a[key]);
     save(); calc();
   });
 }
