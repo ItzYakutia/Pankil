@@ -165,6 +165,36 @@ input.name{font-family:inherit;font-weight:700}
 .rtabs button:hover{color:var(--txt)}
 .rtabs button.on{color:var(--gold2);border-bottom-color:var(--gold)}
 .rtabs button i{font-style:normal;opacity:.6;font-weight:600;margin-left:4px}
+.rtabs .viewbtn{
+  margin:0 0 4px auto;padding:5px 11px;border:1px solid var(--line);border-radius:8px;
+  color:var(--muted);font:700 11.5px "Manrope",sans-serif;align-self:center;
+}
+.rtabs .viewbtn:hover{color:var(--txt);border-color:var(--line2)}
+.rtabs .viewbtn.on{color:var(--gold2);border-color:rgba(242,181,68,.5);background:rgba(242,181,68,.1)}
+
+/* ---------- компактный список ---------- */
+.rows{display:grid;grid-template-columns:max-content max-content max-content 1fr;gap:0 0}
+.row{
+  display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;
+  padding:7px 10px;border-radius:9px;cursor:pointer;transition:.12s;
+  font-family:var(--mono);font-size:15.5px;font-weight:700;white-space:nowrap;
+}
+.row:hover{background:rgba(255,255,255,.055)}
+.row .m{color:var(--gold)}
+.row .x{color:var(--muted);font-weight:500}
+.row .c{color:var(--txt)}
+.row .op{color:var(--muted);padding:0 10px;font-weight:500}
+.row .over{
+  justify-self:end;padding-left:14px;color:var(--gold2);opacity:.8;
+  font:600 11.5px "Manrope",sans-serif;
+}
+@media(max-width:560px){
+  .rtabs button{padding:9px 7px;font-size:12.5px}
+  .rtabs .viewbtn{padding:5px 8px;font-size:11px}
+  .rows{overflow-x:auto}
+  .row{font-size:14px;padding:7px 4px}
+  .row .op{padding:0 7px}
+}
 
 /* ---------- results ---------- */
 .res{display:flex;flex-direction:column;gap:11px}
@@ -366,6 +396,7 @@ input.name{font-family:inherit;font-weight:700}
         <div class="rtabs" id="rtabs">
           <button data-t="all" class="on">Все варианты <i id="c-all">0</i></button>
           <button data-t="noad">Без рекламы <i id="c-noad">0</i></button>
+          <button class="viewbtn" id="b-view" title="Показать, как считалось">Подробно</button>
         </div>
         <div class="res" id="res"></div>
       </div>
@@ -434,6 +465,7 @@ if(!state.accounts.some(a=>a.id===state.active)) state.active = state.accounts[0
 const save = () => { try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} };
 const acc = () => state.accounts.find(a=>a.id===state.active) || state.accounts[0];
 let resTab = "all";
+if(state.view !== "full" && state.view !== "short") state.view = "short";
 
 /* -------------------------------------------------------------- utilities */
 function num(v){
@@ -570,13 +602,13 @@ function solve(a, noAd){
           {base:A.base,useAd:A.useAd,v:A.v,count:x},
           {base:B.base,useAd:B.useAd,v:B.v,count:y}
         ]));
-        if(res.exact.length > 600) break;
+        if(res.exact.length > 1500) break;
       }
     }
-    if(res.exact.length > 600) break;
+    if(res.exact.length > 1500) break;
   }
   res.exact.sort((p,q)=> p.maxC - q.maxC || p.totC - q.totC || p.moves.length - q.moves.length);
-  res.exact = res.exact.slice(0,24);
+  res.exact = res.exact.slice(0,60);
 
   if(res.exact.length >= 3) return res;
 
@@ -775,6 +807,15 @@ function moveLine(i,m){
     + '<span>· очков за ход <span class="val">'+fmt(m.count)+'</span></span>'
     + '<span>· итого <span class="val">'+fmt(m.v*m.count)+'</span></span></div>';
 }
+function rowHtml(s, exact){
+  const plain = s.moves.map(m=>m.v+"x"+m.count).join(" + ");
+  const term = m => '<span class="m">'+m.v+'</span><span class="x">x</span><span class="c">'+m.count+'</span>';
+  let html = '<span>'+term(s.moves[0])+'</span>';
+  html += s.moves[1] ? '<span class="op">+</span><span>'+term(s.moves[1])+'</span>'
+                     : '<span class="op"></span><span></span>';
+  html += '<span class="over">' + (exact ? "" : "+"+fmt(s.over)) + '</span>';
+  return '<div class="row" data-copy="'+escapeHtml(plain)+'" title="Нажмите, чтобы скопировать">'+html+'</div>';
+}
 function solHtml(s, exact){
   const f = s.moves.map(m=>'<span class="m">'+m.v+'</span><span class="x">x</span><span class="c">'+m.count+'</span>')
                    .join('<span class="op">+</span>');
@@ -795,7 +836,8 @@ function calc(){
   $("#s-target").textContent = fmt(Math.round(num(a.target)));
   $("#c-all").textContent  = "(" + (all.exact.length  || all.near.length)  + ")";
   $("#c-noad").textContent = "(" + (noad.exact.length || noad.near.length) + ")";
-  document.querySelectorAll("#rtabs button").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
+  document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
+  $("#b-view").classList.toggle("on", state.view === "full");
 
   const r = resTab === "noad" ? noad : all;
   const el = $("#res");
@@ -811,13 +853,17 @@ function calc(){
     el.innerHTML = '<div class="empty"><span class="big">✓</span>Цель уже достигнута — добирать нечего.</div>';
     return;
   }
+  const full = state.view === "full";
+  const one  = (sol, exact) => full ? solHtml(sol, exact) : rowHtml(sol, exact);
+  const list = (arr, exact) => full ? arr.map(x=>one(x,exact)).join("")
+                                    : '<div class="rows">' + arr.map(x=>one(x,exact)).join("") + '</div>';
   if(r.exact.length){
-    el.innerHTML = r.exact.map(s=>solHtml(s,true)).join("")
+    el.innerHTML = list(r.exact, true)
       + (r.near.length ? '<div class="note">Ниже — варианты с небольшим превышением.</div>'
-          + r.near.map(s=>solHtml(s,false)).join("") : "");
+          + list(r.near, false) : "");
   } else if(r.near.length){
     el.innerHTML = '<div class="note">Точного попадания за два хода нет. Ближайшие варианты с превышением:</div>'
-      + r.near.map(s=>solHtml(s,false)).join("");
+      + list(r.near, false);
   } else {
     el.innerHTML = '<div class="empty"><span class="big">∅</span>Ничего не найдено.<br>Проверьте множители и цель.</div>';
   }
@@ -859,7 +905,11 @@ $("#f-name").addEventListener("input", ()=>{
 document.querySelectorAll("#seg-grail button").forEach(b=>b.onclick = ()=>{
   acc().grail = b.dataset.v === "1"; save(); renderForm(); calc();
 });
-document.querySelectorAll("#rtabs button").forEach(b=>b.onclick = ()=>{ resTab = b.dataset.t; calc(); });
+document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.onclick = ()=>{ resTab = b.dataset.t; calc(); });
+$("#b-view").onclick = ()=>{
+  state.view = state.view === "full" ? "short" : "full";
+  save(); calc();
+};
 
 $("#b-addmult").onclick = ()=>{
   const el = $("#f-newmult"), v = Math.round(num(el.value));
