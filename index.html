@@ -95,6 +95,7 @@ body{
 .card.fold > h2{cursor:pointer;user-select:none;transition:.15s}
 .card.fold > h2:hover{color:var(--txt)}
 .card.fold.folded > h2{margin-bottom:0}
+.card-points.folded > h2{margin-bottom:12px}
 .card.folded .card-body{display:none}
 .h2-hint{
   margin-left:auto;min-width:0;font:600 11px "Manrope",sans-serif;color:var(--muted);
@@ -448,16 +449,18 @@ input.name{font-family:inherit;font-weight:700}
         </div>
       </div>
 
-      <div class="card card-points">
+      <div class="card fold card-points" data-fold="points">
         <h2><span class="ic">◆</span> Очки
-          <span class="okpill" id="mark-points" hidden><i>✓</i>Пара найдена</span></h2>
-        <div class="field">
-          <label>Уже набрано</label>
-          <input type="text" inputmode="numeric" id="f-cur" placeholder="0">
-        </div>
-        <div class="field">
-          <label>Сколько нужно набрать</label>
-          <input type="text" inputmode="numeric" id="f-target" placeholder="например 152 681 196">
+          <span class="h2-hint" id="hint-points"></span><span class="chev">▾</span></h2>
+        <div class="card-body">
+          <div class="field">
+            <label>Уже набрано</label>
+            <input type="text" inputmode="numeric" id="f-cur" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Сколько нужно набрать</label>
+            <input type="text" inputmode="numeric" id="f-target" placeholder="например 152 681 196">
+          </div>
         </div>
         <button class="btn gold wide" id="b-calc" style="margin-top:14px">Показать варианты</button>
         <button class="btn wide" id="b-help" style="margin-top:9px">Памятка: как считаются очки</button>
@@ -906,7 +909,6 @@ function calc(){
   document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
   const hasPair = all.exact.some(s=>s.moves.length === 2);
   $("#mark-mults").hidden = !hasPair;
-  $("#mark-points").hidden = !hasPair;
   foldHints();
   $("#b-view").classList.toggle("on", state.view === "full");
 
@@ -1057,6 +1059,8 @@ function foldHints(){
     ? (n ? (tight ? n + " шт." : n + " шт.: " + a.mults.slice(0,3).map(fmt).join(", ") + (n > 3 ? "…" : ""))
          : "не заданы")
     : "";
+  const tgt = Math.round(num(a.target));
+  $("#hint-points").textContent = state.fold.points ? (tgt ? "цель " + fmt(tgt) : "цель не задана") : "";
   if(state.fold.bonus){
     const parts = [];
     if(num(a.ad)) parts.push("реклама +" + fmt(a.ad));
