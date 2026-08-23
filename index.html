@@ -9,18 +9,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<script>
-/* Счётчик посещений. Пустая строка — выключен. */
-(function(){
-  var TOKEN = "";                    /* токен из Cloudflare Web Analytics */
-  if(!TOKEN) return;
-  var s = document.createElement("script");
-  s.defer = true;
-  s.src = "https://static.cloudflareinsights.com/beacon.min.js";
-  s.setAttribute("data-cf-beacon", '{"token": "' + TOKEN + '"}');
-  document.head.appendChild(s);
-})();
-</script>
+<!-- счётчик посещений -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon='{"token": "a1ec1f9cb68e43f68a3f4bee80d99cc6"}'></script>
 <style>
 *{box-sizing:border-box}
 :root{
