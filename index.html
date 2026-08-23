@@ -514,6 +514,28 @@ function exactXs(a,b,R,cap,lo,hi){
   }
   return out;
 }
+/* Минимально возможное превышение для пары (a,b) при x>=1, y>=1.
+   Сумма = a + b + (a'u + b'v)*g, значит нужно наименьшее представимое
+   t = a'u + b'v, не меньшее t0. Всё, что больше числа Фробениуса
+   (a'-1)(b'-1), представимо сразу; иначе достаточно перебрать остатки
+   по меньшему коэффициенту — их не больше a'. */
+function minOver(a,b,R){
+  const R1 = R - a - b;
+  if(R1 <= 0) return a + b - R;               /* хватает по одному ходу */
+  const g = gcd(a,b);
+  let A = a/g, B = b/g;
+  if(A > B){ const t = A; A = B; B = t; }     /* пробегаем по меньшему */
+  const t0 = Math.ceil(R1/g);
+  if(A === 1 || t0 >= (A-1)*(B-1)) return g*t0 - R1;
+  const step = A > 200000 ? Math.ceil(A/200000) : 1;   /* страховка от экзотики */
+  let best = Infinity;
+  for(let v=0; v<A; v+=step){
+    const rem = t0 - B*v;
+    const t = rem <= 0 ? B*v : B*v + A*Math.ceil(rem/A);
+    if(t < best){ best = t; if(best === t0) break; }
+  }
+  return g*best - R1;
+}
 function keyOf(sol){
   return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
 }
@@ -567,14 +589,17 @@ function solve(a, noAd){
   for(let i=0;i<vs.length;i++){
     for(let j=i;j<vs.length;j++){
       const A = vs[i], B = vs[j];
-      const maxX = Math.floor(R/A.v);
-      const step = Math.max(1, Math.ceil(maxX/4000));
-      for(let x=1; x<=maxX; x+=step){
-        const rem = R - A.v*x;
-        if(rem <= 0) break;
+      /* сразу считаем минимальное превышение пары, а потом берём
+         красивые расклады уже под точную сумму R + превышение */
+      const over = minOver(A.v, B.v, R);
+      const R2 = R + over;
+      const xs = exactXs(A.v, B.v, R2, 3, 1, Math.floor((R2 - B.v)/A.v));
+      for(const x of xs){
+        const y = (R2 - A.v*x)/B.v;
+        if(y < 1) continue;
         near.push(mk([
           {base:A.base,useAd:A.useAd,v:A.v,count:x},
-          {base:B.base,useAd:B.useAd,v:B.v,count:Math.ceil(rem/B.v)}
+          {base:B.base,useAd:B.useAd,v:B.v,count:y}
         ]));
       }
     }
