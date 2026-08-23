@@ -88,8 +88,21 @@ body{
 .card h2{
   font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
   margin:0 0 13px;font-weight:700;display:flex;align-items:center;gap:8px;
+  white-space:nowrap;
 }
 .card h2 .ic{color:var(--gold);font-size:13px}
+.card.fold > h2{cursor:pointer;user-select:none;transition:.15s}
+.card.fold > h2:hover{color:var(--txt)}
+.card.fold.folded > h2{margin-bottom:0}
+.card.folded .card-body{display:none}
+.h2-hint{
+  margin-left:auto;min-width:0;font:600 11px "Manrope",sans-serif;color:var(--muted);
+  text-transform:none;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+@media(max-width:560px){ .card h2{letter-spacing:.1em} }
+.chev{margin-left:8px;color:var(--muted);font-size:10px;transition:transform .18s;flex:none}
+.card.folded .chev{transform:rotate(-90deg)}
+.card-points{border-color:rgba(242,181,68,.28);box-shadow:0 6px 26px rgba(242,181,68,.07)}
 
 label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px;font-weight:600}
 .field{margin-bottom:13px}
@@ -370,24 +383,60 @@ input.name{font-family:inherit;font-weight:700}
 
   <div class="grid">
     <div>
-      <div class="card">
-        <h2><span class="ic">◆</span> Аккаунт</h2>
-        <div class="field">
-          <label>Название</label>
-          <input type="text" class="name" id="f-name" placeholder="Например: Основной">
+      <div class="card fold" data-fold="acc">
+        <h2><span class="ic">◆</span> Аккаунт <span class="h2-hint" id="hint-acc"></span><span class="chev">▾</span></h2>
+        <div class="card-body">
+          <div class="field">
+            <label>Название</label>
+            <input type="text" class="name" id="f-name" placeholder="Например: Основной">
+          </div>
+          <div class="row2">
+            <button class="btn" id="b-copy">Копировать</button>
+            <button class="btn" id="b-paste">Вставить</button>
+          </div>
+          <div class="row2">
+            <button class="btn" id="b-dup">Дублировать</button>
+            <button class="btn danger" id="b-del">Удалить</button>
+          </div>
+          <div class="hint">«Копировать» даёт короткий код аккаунта — его можно отправить другому игроку, он вставит его у себя.</div>
         </div>
-        <div class="row2">
-          <button class="btn" id="b-copy">Копировать</button>
-          <button class="btn" id="b-paste">Вставить</button>
-        </div>
-        <div class="row2">
-          <button class="btn" id="b-dup">Дублировать</button>
-          <button class="btn danger" id="b-del">Удалить</button>
-        </div>
-        <div class="hint">«Копировать» даёт короткий код аккаунта — его можно отправить другому игроку, он вставит его у себя.</div>
       </div>
 
-      <div class="card">
+      <div class="card fold" data-fold="mults">
+        <h2><span class="ic">◆</span> Множители (КМ) <span class="h2-hint" id="hint-mults"></span><span class="chev">▾</span></h2>
+        <div class="card-body">
+          <div class="chips" id="mults"></div>
+          <div class="addrow">
+            <input type="text" inputmode="numeric" id="f-newmult" placeholder="Новый множитель">
+            <button class="btn gold" id="b-addmult">Добавить</button>
+          </div>
+          <div class="eff" id="eff"></div>
+        </div>
+      </div>
+
+      <div class="card fold" data-fold="bonus">
+        <h2><span class="ic">◆</span> Бонусы <span class="h2-hint" id="hint-bonus"></span><span class="chev">▾</span></h2>
+        <div class="card-body">
+          <div class="field">
+            <label>Бонус от рекламы (+ к КМ)</label>
+            <input type="text" inputmode="numeric" id="f-ad" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Грааль</label>
+            <div class="seg" id="seg-grail">
+              <button data-v="1">Грааль есть</button>
+              <button data-v="0">Грааля нет</button>
+            </div>
+          </div>
+          <div class="field" id="wrap-grailpct">
+            <label>Бонус Грааля, % к КМ</label>
+            <input type="text" inputmode="decimal" id="f-grailpct" placeholder="0">
+            <div class="hint" id="hint-grail">Процент прибавляется к КМ без рекламы, бонус рекламы добавляется уже сверху.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-points">
         <h2><span class="ic">◆</span> Очки</h2>
         <div class="field">
           <label>Уже набрано</label>
@@ -397,42 +446,9 @@ input.name{font-family:inherit;font-weight:700}
           <label>Сколько нужно набрать</label>
           <input type="text" inputmode="numeric" id="f-target" placeholder="например 152 681 196">
         </div>
-      </div>
-
-      <div class="card">
-        <h2><span class="ic">◆</span> Множители (КМ)</h2>
-        <div class="chips" id="mults"></div>
-        <div class="addrow">
-          <input type="text" inputmode="numeric" id="f-newmult" placeholder="Новый множитель">
-          <button class="btn gold" id="b-addmult">Добавить</button>
-        </div>
-        <div class="eff" id="eff"></div>
-      </div>
-
-      <div class="card">
-        <h2><span class="ic">◆</span> Бонусы</h2>
-        <div class="field">
-          <label>Бонус от рекламы (+ к КМ)</label>
-          <input type="text" inputmode="numeric" id="f-ad" placeholder="0">
-        </div>
-        <div class="field">
-          <label>Грааль</label>
-          <div class="seg" id="seg-grail">
-            <button data-v="1">Грааль есть</button>
-            <button data-v="0">Грааля нет</button>
-          </div>
-        </div>
-        <div class="field" id="wrap-grailpct">
-          <label>Бонус Грааля, % к КМ</label>
-          <input type="text" inputmode="decimal" id="f-grailpct" placeholder="0">
-          <div class="hint" id="hint-grail">Процент прибавляется к КМ без рекламы, бонус рекламы добавляется уже сверху.</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <button class="btn gold wide" id="b-calc">Рассчитать</button>
+        <button class="btn gold wide" id="b-calc" style="margin-top:14px">Показать варианты</button>
         <button class="btn wide" id="b-help" style="margin-top:9px">Памятка: как считаются очки</button>
-        <div class="note">Расчёт обновляется автоматически при изменении полей. Все аккаунты сохраняются в браузере.</div>
+        <div class="note">Расчёт обновляется сам при изменении полей. Аккаунты сохраняются в браузере.</div>
       </div>
     </div>
 
@@ -823,6 +839,7 @@ function renderForm(){
   refreshGrailHint();
   renderMults();
   renderEff();
+  foldHints();
 }
 function segSet(sel,val){
   document.querySelectorAll(sel+" button").forEach(b=>b.classList.toggle("on", b.dataset.v===val));
@@ -1006,6 +1023,35 @@ $("#b-importall").onclick = ()=>{
   });
 };
 
+/* --- сворачивание карточек-настроек --- */
+if(!state.fold || typeof state.fold !== "object") state.fold = {};
+function applyFold(){
+  document.querySelectorAll(".card.fold").forEach(c=>{
+    c.classList.toggle("folded", !!state.fold[c.dataset.fold]);
+  });
+}
+function foldHints(){
+  const a = acc();
+  $("#hint-acc").textContent = state.fold.acc ? a.name : "";
+  const n = a.mults.length;
+  $("#hint-mults").textContent = state.fold.mults
+    ? (n ? n + " шт.: " + a.mults.slice(0,3).map(fmt).join(", ") + (n > 3 ? "…" : "") : "не заданы")
+    : "";
+  if(state.fold.bonus){
+    const parts = [];
+    if(num(a.ad)) parts.push("реклама +" + fmt(a.ad));
+    if(a.grail && num(a.grailPct)) parts.push("грааль +" + a.grailPct + "%");
+    $("#hint-bonus").textContent = parts.length ? parts.join(" · ") : "нет";
+  } else $("#hint-bonus").textContent = "";
+}
+document.querySelectorAll(".card.fold > h2").forEach(h=>{
+  h.onclick = ()=>{
+    const k = h.parentNode.dataset.fold;
+    state.fold[k] = !state.fold[k];
+    save(); applyFold(); foldHints();
+  };
+});
+
 /* --- памятка по очкам: тык открыл, тык закрыл --- */
 const HELP = [
   [45,"c3 c3 c3 c3 c3"], [30,"c2 c2 c2 c2 c2"], [30,"c3 c3 c3 c3"], [20,"c2 c2 c2 c2"],
@@ -1054,6 +1100,7 @@ $("#b-mail").onclick = ()=>{
   } else toast(m);
 };
 
+applyFold();
 renderAll();
 })();
 </script>
