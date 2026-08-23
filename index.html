@@ -1,0 +1,912 @@
+<!-- Калькулятор Панкиль · made by Кэс · chelovekrukzak@gmail.com -->
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f16">
+<title>Калькулятор Панкиль</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#0b0f16;
+  --card:rgba(255,255,255,.045);
+  --card2:rgba(255,255,255,.03);
+  --line:rgba(255,255,255,.09);
+  --line2:rgba(255,255,255,.16);
+  --txt:#e9eef8;
+  --muted:#8c99af;
+  --gold:#f2b544;
+  --gold2:#ffd88a;
+  --green:#3ad991;
+  --red:#ff7b72;
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --r:16px;
+}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color:var(--txt);
+  background:
+    radial-gradient(1100px 620px at 15% -12%, #1c2a45 0%, transparent 60%),
+    radial-gradient(900px 520px at 108% 4%, #2d1f42 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  font-size:15px;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 16px 64px}
+
+/* ---------- header ---------- */
+.top{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.logo{
+  width:46px;height:46px;border-radius:14px;flex:none;overflow:hidden;
+  box-shadow:0 8px 26px rgba(242,181,68,.28);
+}
+.logo svg{display:block;width:100%;height:100%}
+.top h1{font-size:21px;margin:0;font-weight:800;letter-spacing:-.025em;line-height:1.2}
+@media(max-width:520px){.top h1{font-size:18px}}
+
+/* ---------- account tabs ---------- */
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;margin-bottom:14px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:none;display:flex;align-items:center;gap:8px;
+  padding:9px 15px;border-radius:999px;cursor:pointer;
+  background:var(--card);border:1px solid var(--line);
+  color:var(--muted);font-weight:600;font-size:13.5px;white-space:nowrap;
+  transition:.16s;
+}
+.tab:hover{border-color:var(--line2);color:var(--txt)}
+.tab.on{
+  background:linear-gradient(145deg,rgba(242,181,68,.22),rgba(242,181,68,.09));
+  border-color:rgba(242,181,68,.55);color:var(--gold2);
+  box-shadow:0 4px 18px rgba(242,181,68,.14);
+}
+.tab .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.55}
+.tab.add{color:var(--gold);border-style:dashed;font-weight:700}
+
+/* ---------- layout ---------- */
+.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:940px){.grid{grid-template-columns:minmax(340px,400px) 1fr;align-items:start}}
+
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px;backdrop-filter:blur(12px);
+}
+.card + .card{margin-top:16px}
+.card h2{
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  margin:0 0 13px;font-weight:700;display:flex;align-items:center;gap:8px;
+}
+.card h2 .ic{color:var(--gold);font-size:13px}
+
+label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px;font-weight:600}
+.field{margin-bottom:13px}
+.field:last-child{margin-bottom:0}
+input[type=text]{
+  width:100%;padding:11px 13px;border-radius:11px;
+  background:rgba(0,0,0,.28);border:1px solid var(--line);
+  color:var(--txt);font-family:var(--mono);font-size:15px;font-weight:500;
+  outline:none;transition:.15s;
+}
+input[type=text]:focus{border-color:rgba(242,181,68,.6);background:rgba(0,0,0,.4);box-shadow:0 0 0 3px rgba(242,181,68,.1)}
+input.name{font-family:inherit;font-weight:700}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.row2 + .row2{margin-top:9px}
+
+/* ---------- segmented ---------- */
+.seg{display:flex;gap:4px;background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:11px;padding:4px}
+.seg button{
+  flex:1;padding:8px 6px;border:0;border-radius:8px;cursor:pointer;
+  background:transparent;color:var(--muted);font:600 12.5px "Manrope",sans-serif;transition:.15s;
+}
+.seg button:hover{color:var(--txt)}
+.seg button.on{background:linear-gradient(145deg,rgba(242,181,68,.9),rgba(224,154,36,.85));color:#22160a;box-shadow:0 3px 10px rgba(242,181,68,.25)}
+
+/* ---------- multipliers ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:11px}
+.chip{
+  display:flex;align-items:center;gap:2px;padding:5px 6px 5px 10px;border-radius:10px;
+  background:rgba(0,0,0,.3);border:1px solid var(--line);
+}
+.chip input{
+  width:74px;background:transparent;border:0;outline:none;color:var(--txt);
+  font-family:var(--mono);font-size:14px;font-weight:600;padding:2px 0;
+}
+.chip .x{
+  width:20px;height:20px;border:0;border-radius:6px;cursor:pointer;flex:none;
+  background:transparent;color:var(--muted);font-size:15px;line-height:1;transition:.15s;
+}
+.chip .x:hover{background:rgba(255,123,114,.16);color:var(--red)}
+.addrow{display:flex;gap:8px}
+.addrow input{flex:1}
+.btn{
+  padding:11px 14px;border-radius:11px;border:1px solid var(--line);cursor:pointer;
+  background:var(--card);color:var(--txt);font:700 13px "Manrope",sans-serif;transition:.15s;
+}
+.btn:hover{border-color:var(--line2);background:rgba(255,255,255,.07)}
+.btn.gold{
+  border:0;color:#22160a;
+  background:linear-gradient(145deg,var(--gold2),#e5a028);
+  box-shadow:0 6px 20px rgba(242,181,68,.25);
+}
+.btn.gold:hover{filter:brightness(1.07)}
+.btn.wide{width:100%;padding:13px;font-size:14px}
+.btn.ghost{background:transparent;color:var(--muted);font-weight:600}
+.btn.danger:hover{border-color:rgba(255,123,114,.5);color:var(--red);background:rgba(255,123,114,.08)}
+
+.eff{margin-top:12px;border-top:1px dashed var(--line);padding-top:11px}
+.eff table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+.eff th{color:var(--muted);font:600 10.5px "Manrope",sans-serif;text-transform:uppercase;letter-spacing:.08em;text-align:right;padding:0 0 6px}
+.eff th:first-child{text-align:left}
+.eff td{padding:3px 0;text-align:right;color:var(--txt)}
+.eff td:first-child{text-align:left;color:var(--muted)}
+.eff td.ad{color:var(--gold2)}
+
+/* ---------- summary ---------- */
+.sum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.sum div{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+.sum span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:4px}
+.sum b{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:-.02em}
+.sum b.hl{color:var(--gold2)}
+
+/* ---------- result tabs ---------- */
+.rtabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:-2px 0 14px}
+.rtabs button{
+  background:transparent;border:0;cursor:pointer;padding:9px 14px;
+  color:var(--muted);font:700 13px "Manrope",sans-serif;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s;
+}
+.rtabs button:hover{color:var(--txt)}
+.rtabs button.on{color:var(--gold2);border-bottom-color:var(--gold)}
+.rtabs button i{font-style:normal;opacity:.6;font-weight:600;margin-left:4px}
+
+/* ---------- results ---------- */
+.res{display:flex;flex-direction:column;gap:11px}
+.sol{
+  background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px 15px;
+  transition:.16s;position:relative;overflow:hidden;
+}
+.sol:hover{border-color:var(--line2);background:rgba(255,255,255,.055)}
+.sol::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);opacity:.75}
+.sol.exact::before{background:var(--green)}
+.sol-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+.formula{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.45}
+.formula .op{color:var(--muted);margin:0 5px;font-weight:500}
+.formula .x{color:var(--muted);font-weight:500}
+.formula .m{color:var(--gold)}
+.formula .c{color:var(--txt)}
+.badge{
+  flex:none;padding:4px 9px;border-radius:7px;font:700 10.5px "Manrope",sans-serif;
+  text-transform:uppercase;letter-spacing:.07em;
+}
+.badge.over{background:rgba(242,181,68,.15);color:var(--gold2)}
+.steps{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)}
+.step{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step .n{
+  width:19px;height:19px;border-radius:6px;flex:none;display:grid;place-items:center;
+  background:rgba(255,255,255,.07);font:700 10.5px "Manrope",sans-serif;color:var(--txt);
+}
+.step .val{font-family:var(--mono);color:var(--txt);font-weight:600}
+.tag{
+  padding:2px 7px;border-radius:6px;font:700 10px "Manrope",sans-serif;letter-spacing:.05em;
+  background:rgba(242,181,68,.14);color:var(--gold2);
+}
+.tag.g{background:rgba(150,120,255,.16);color:#b9a6ff}
+.copy{
+  position:absolute;right:10px;bottom:10px;opacity:0;transition:.15s;
+  background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--muted);
+  border-radius:8px;padding:4px 9px;font:600 11px "Manrope",sans-serif;cursor:pointer;
+}
+.sol:hover .copy{opacity:1}
+.copy:hover{color:var(--txt);border-color:var(--line2)}
+@media (hover:none){.copy{opacity:.8;position:static;margin-top:9px}}
+.empty{
+  text-align:center;padding:38px 18px;color:var(--muted);font-size:13.5px;line-height:1.6;
+  border:1px dashed var(--line);border-radius:14px;
+}
+.empty .big{font-size:30px;display:block;margin-bottom:10px;opacity:.6}
+.note{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5}
+.foot{margin-top:22px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.foot .btn{padding:7px 12px;font-size:11.5px}
+.hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.45}
+.hint b{color:var(--gold2);font-family:var(--mono);font-weight:600}
+.site-foot{
+  margin:34px auto 0;max-width:640px;text-align:center;
+  border-top:1px solid var(--line);padding-top:20px;
+  color:var(--muted);font-size:12.5px;line-height:1.7;
+}
+.site-foot .made{font-weight:700;letter-spacing:.02em}
+.site-foot .cr{color:var(--muted);font-weight:600;opacity:.8}
+.site-foot .made b{color:var(--gold2);font-weight:800}
+.site-foot .mail{margin-top:4px}
+.site-foot a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(242,181,68,.35);font-family:var(--mono);font-size:12px}
+.site-foot a:hover{color:var(--gold2);border-bottom-color:var(--gold2)}
+.mailcopy{
+  margin-left:7px;padding:2px 8px;border-radius:7px;cursor:pointer;
+  background:transparent;border:1px solid var(--line);color:var(--muted);
+  font:600 10.5px "Manrope",sans-serif;transition:.15s;vertical-align:1px;
+}
+.mailcopy:hover{color:var(--txt);border-color:var(--line2)}
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,18px);
+  background:#1a2130;border:1px solid var(--line2);color:var(--txt);
+  padding:10px 18px;border-radius:12px;font-size:13px;font-weight:600;
+  opacity:0;pointer-events:none;transition:.22s;z-index:50;box-shadow:0 12px 34px rgba(0,0,0,.45);
+  max-width:calc(100vw - 40px);text-align:center;
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- modal ---------- */
+.modal{
+  position:fixed;inset:0;background:rgba(5,8,13,.7);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:20px;z-index:60;
+}
+.modal.on{display:flex}
+.modal .box{
+  background:#141b28;border:1px solid var(--line2);border-radius:16px;padding:18px;
+  width:100%;max-width:460px;box-shadow:0 24px 60px rgba(0,0,0,.5);
+}
+.modal h3{margin:0 0 6px;font-size:16px}
+.modal p{margin:0 0 12px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.modal textarea{
+  width:100%;height:120px;resize:vertical;padding:11px 13px;border-radius:11px;
+  background:rgba(0,0,0,.35);border:1px solid var(--line);color:var(--txt);
+  font-family:var(--mono);font-size:12px;outline:none;word-break:break-all;
+}
+.modal textarea:focus{border-color:rgba(242,181,68,.6)}
+.modal .acts{display:flex;gap:9px;margin-top:13px}
+.modal .acts .btn{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="logo" title="Карась на сковороде">
+      <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Логотип">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ffd88a"/><stop offset="1" stop-color="#e5a028"/>
+        </linearGradient></defs>
+        <rect width="48" height="48" rx="14" fill="url(#lg)"/>
+        <g stroke="#2a1c08" fill="#2a1c08" stroke-linejoin="round">
+          <path d="M32.6 16.2 41 8.6" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+          <circle cx="21.5" cy="26" r="13" fill="none" stroke-width="3"/>
+          <g transform="rotate(-10 21.5 26)">
+            <path d="M13.4 26q6.2-6 12.4 0-6.2 6-12.4 0z" stroke-width="1.6"/>
+            <path d="M25.6 26 30.4 22.5v7z" stroke-width="1.6"/>
+            <circle cx="17.2" cy="24.7" r="1.15" fill="#ffd88a" stroke="none"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <h1>Калькулятор Панкиль</h1>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2><span class="ic">◆</span> Аккаунт</h2>
+        <div class="field">
+          <label>Название</label>
+          <input type="text" class="name" id="f-name" placeholder="Например: Основной">
+        </div>
+        <div class="row2">
+          <button class="btn" id="b-copy">Копировать</button>
+          <button class="btn" id="b-paste">Вставить</button>
+        </div>
+        <div class="row2">
+          <button class="btn" id="b-dup">Дублировать</button>
+          <button class="btn danger" id="b-del">Удалить</button>
+        </div>
+        <div class="hint">«Копировать» даёт короткий код аккаунта — его можно отправить другому игроку, он вставит его у себя.</div>
+      </div>
+
+      <div class="card">
+        <h2><span class="ic">◆</span> Очки</h2>
+        <div class="field">
+          <label>Уже набрано</label>
+          <input type="text" inputmode="numeric" id="f-cur" placeholder="0">
+        </div>
+        <div class="field">
+          <label>Сколько нужно набрать</label>
+          <input type="text" inputmode="numeric" id="f-target" placeholder="152 681 196">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="ic">◆</span> Множители (КМ)</h2>
+        <div class="chips" id="mults"></div>
+        <div class="addrow">
+          <input type="text" inputmode="numeric" id="f-newmult" placeholder="Новый множитель">
+          <button class="btn gold" id="b-addmult">Добавить</button>
+        </div>
+        <div class="eff" id="eff"></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="ic">◆</span> Бонусы</h2>
+        <div class="field">
+          <label>Бонус от рекламы (+ к КМ)</label>
+          <input type="text" inputmode="numeric" id="f-ad" placeholder="13">
+        </div>
+        <div class="field">
+          <label>Грааль</label>
+          <div class="seg" id="seg-grail">
+            <button data-v="1">Грааль есть</button>
+            <button data-v="0">Грааля нет</button>
+          </div>
+        </div>
+        <div class="field" id="wrap-grailpct">
+          <label>Бонус Грааля, % к КМ</label>
+          <input type="text" inputmode="decimal" id="f-grailpct" placeholder="0">
+          <div class="hint" id="hint-grail">Процент прибавляется к КМ без рекламы, бонус рекламы добавляется уже сверху.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <button class="btn gold wide" id="b-calc">Рассчитать</button>
+        <div class="note">Расчёт обновляется автоматически при изменении полей. Все аккаунты сохраняются в браузере.</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sum">
+        <div><span>Осталось набрать</span><b class="hl" id="s-left">0</b></div>
+        <div><span>Цель</span><b id="s-target">0</b></div>
+      </div>
+      <div class="card">
+        <div class="rtabs" id="rtabs">
+          <button data-t="all" class="on">Все варианты <i id="c-all">0</i></button>
+          <button data-t="noad">Без рекламы <i id="c-noad">0</i></button>
+        </div>
+        <div class="res" id="res"></div>
+      </div>
+      <div class="foot">
+        <button class="btn ghost" id="b-exportall">Копировать все аккаунты</button>
+        <button class="btn ghost" id="b-importall">Вставить все аккаунты</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-foot">
+    <div class="made">made by <b>Кэс</b> <span class="cr">© <span id="yr">2026</span></span></div>
+    <div class="mail">
+      Для предложений, идей и багов —
+      <a href="mailto:chelovekrukzak@gmail.com">chelovekrukzak@gmail.com</a>
+      <button class="mailcopy" id="b-mail" title="Скопировать почту">копировать</button>
+    </div>
+  </footer>
+</div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h3 id="m-title">Код аккаунта</h3>
+    <p id="m-text"></p>
+    <textarea id="m-area" spellcheck="false"></textarea>
+    <div class="acts">
+      <button class="btn gold" id="m-ok">Готово</button>
+      <button class="btn" id="m-cancel">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+const fmt = n => Number(n).toLocaleString("ru-RU").replace(/ /g," ");
+
+(function(){                              /* текущий год в футере */
+  const y = $("#yr"); if(y) y.textContent = new Date().getFullYear();
+})();
+const LS = "karas_safe_calc_v1";
+
+/* ------------------------------------------------------------------ state */
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function newAcc(name, src){
+  return {
+    id:uid(), name:name||"Новый аккаунт",
+    mults: src ? src.mults.slice() : [],
+    ad: src ? src.ad : 0,
+    grail: src ? src.grail : false,
+    grailPct: src ? src.grailPct : 0,
+    cur: src ? src.cur : 0,
+    target: src ? src.target : 0
+  };
+}
+let state;
+try { state = JSON.parse(localStorage.getItem(LS)) || null; } catch(e){ state = null; }
+if(!state || !state.accounts || !state.accounts.length){
+  const a = newAcc("Основной");
+  a.mults = [60820,43677,36785,27248,20367,9770];
+  a.ad = 13;
+  a.target = 152681196;
+  state = { accounts:[a], active:a.id };
+}
+if(!state.accounts.some(a=>a.id===state.active)) state.active = state.accounts[0].id;
+const save = () => { try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} };
+const acc = () => state.accounts.find(a=>a.id===state.active) || state.accounts[0];
+let resTab = "all";
+
+/* -------------------------------------------------------------- utilities */
+function num(v){
+  if(typeof v === "number") return v;
+  const s = String(v==null?"":v).replace(/\s| /g,"").replace(",",".");
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+}
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove("on"), 2200);
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ------------------------------------------------------------ math engine */
+/* Грааль даёт процент к базовому КМ; бонус рекламы прибавляется уже после. */
+function effective(base, useAd, a){
+  let v = base;
+  if(a.grail && a.grailPct) v = v * (1 + a.grailPct/100);
+  v = Math.round(v);
+  if(useAd) v += Math.round(a.ad);
+  return v;
+}
+function variants(a){
+  const out = [], seen = new Set();
+  const modes = a.ad > 0 ? [false,true] : [false];
+  for(const m of a.mults){
+    if(!m || m <= 0) continue;
+    for(const useAd of modes){
+      const v = effective(m, useAd, a);
+      if(v <= 0) continue;
+      const k = m + "|" + useAd;
+      if(seen.has(k)) continue;
+      seen.add(k);
+      out.push({base:m, useAd:useAd, v:v});
+    }
+  }
+  return out.sort((x,y)=>y.v-x.v);
+}
+function gcd(a,b){ while(b){ const t=a%b; a=b; b=t; } return a; }
+function egcd(a,b){
+  if(!b) return [a,1,0];
+  const r = egcd(b, a%b);
+  return [r[0], r[2], r[1] - Math.floor(a/b)*r[2]];
+}
+function modinv(a,m){
+  if(m === 1) return 0;
+  const r = egcd(((a%m)+m)%m, m);
+  if(r[0] !== 1) return null;
+  return ((r[1]%m)+m)%m;
+}
+/* целые x из [lo..hi], при которых (R - a*x) делится на b; не больше cap штук */
+function exactXs(a,b,R,cap,lo,hi){
+  const out = [];
+  if(hi < lo) return out;
+  const g = gcd(a,b);
+  if(R % g !== 0) return out;
+  const ap = a/g, bp = b/g, Rp = R/g;
+  const inv = modinv(ap % bp, bp);
+  if(inv === null) return out;
+  const x0 = ((Rp % bp) * inv) % bp;
+  let k0 = Math.ceil((lo - x0)/bp); if(k0 < 0) k0 = 0;
+  const first = x0 + k0*bp;
+  if(first > hi) return out;
+  const total = Math.floor((hi - first)/bp) + 1;
+  if(total <= cap){
+    for(let k=0;k<total;k++) out.push(first + k*bp);
+  } else {
+    for(let i=0;i<cap;i++){
+      const k = Math.round(i*(total-1)/(cap-1));
+      out.push(first + k*bp);
+    }
+  }
+  return out;
+}
+function keyOf(sol){
+  return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
+}
+/* noAd = true -> искать только среди ходов без рекламы */
+function solve(a, noAd){
+  const R = Math.max(0, Math.round(num(a.target)) - Math.round(num(a.cur)));
+  const res = { R:R, exact:[], near:[] };
+  if(R <= 0) return res;
+  let vs = variants(a);
+  if(noAd) vs = vs.filter(v=>!v.useAd);
+  if(!vs.length) return res;
+  const seen = new Set();
+  const push = (arr, sol) => { const k = keyOf(sol); if(seen.has(k)) return; seen.add(k); arr.push(sol); };
+  const mk = moves => {
+    const sum = moves.reduce((s,m)=>s + m.v*m.count, 0);
+    return { moves:moves, sum:sum, over:sum-R,
+             maxC: moves.reduce((s,m)=>Math.max(s,m.count),0),
+             totC: moves.reduce((s,m)=>s+m.count,0) };
+  };
+
+  /* --- один ход --- */
+  for(const v of vs){
+    if(R % v.v === 0) push(res.exact, mk([{base:v.base,useAd:v.useAd,v:v.v,count:R/v.v}]));
+  }
+  /* --- два хода: точные попадания --- */
+  for(let i=0;i<vs.length;i++){
+    for(let j=i;j<vs.length;j++){
+      const A = vs[i], B = vs[j];
+      const hi = Math.floor((R - B.v)/A.v);
+      const xs = exactXs(A.v, B.v, R, 36, 1, hi);
+      for(const x of xs){
+        const y = (R - A.v*x)/B.v;
+        if(y < 1) continue;
+        push(res.exact, mk([
+          {base:A.base,useAd:A.useAd,v:A.v,count:x},
+          {base:B.base,useAd:B.useAd,v:B.v,count:y}
+        ]));
+        if(res.exact.length > 600) break;
+      }
+    }
+    if(res.exact.length > 600) break;
+  }
+  res.exact.sort((p,q)=> p.maxC - q.maxC || p.totC - q.totC || p.moves.length - q.moves.length);
+  res.exact = res.exact.slice(0,24);
+
+  if(res.exact.length >= 3) return res;
+
+  /* --- ближайшие с превышением --- */
+  const near = [];
+  for(const v of vs) near.push(mk([{base:v.base,useAd:v.useAd,v:v.v,count:Math.ceil(R/v.v)}]));
+  for(let i=0;i<vs.length;i++){
+    for(let j=i;j<vs.length;j++){
+      const A = vs[i], B = vs[j];
+      const maxX = Math.floor(R/A.v);
+      const step = Math.max(1, Math.ceil(maxX/4000));
+      for(let x=1; x<=maxX; x+=step){
+        const rem = R - A.v*x;
+        if(rem <= 0) break;
+        near.push(mk([
+          {base:A.base,useAd:A.useAd,v:A.v,count:x},
+          {base:B.base,useAd:B.useAd,v:B.v,count:Math.ceil(rem/B.v)}
+        ]));
+      }
+    }
+  }
+  near.sort((p,q)=> p.over - q.over || p.maxC - q.maxC || p.totC - q.totC);
+  const out = [], seen2 = new Set();
+  for(const s of near){
+    const k = keyOf(s);
+    if(seen2.has(k) || seen.has(k)) continue;
+    seen2.add(k); out.push(s);
+    if(out.length >= 12) break;
+  }
+  res.near = out;
+  return res;
+}
+
+/* --------------------------------------------------- обмен аккаунтами */
+const b64e = str => btoa(Array.from(new TextEncoder().encode(str), c=>String.fromCharCode(c)).join(""));
+const b64d = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64), c=>c.charCodeAt(0)));
+function packAcc(a){
+  const o = {n:a.name, m:a.mults, ad:a.ad, g:a.grail?1:0, gp:a.grailPct, c:num(a.cur), t:num(a.target)};
+  return "KARAS1:" + b64e(JSON.stringify(o));
+}
+function unpackAcc(txt){
+  let s = String(txt||"").trim();
+  if(!s) return null;
+  let o = null;
+  if(s.indexOf("KARAS1:") === 0){
+    try{ o = JSON.parse(b64d(s.slice(7).replace(/\s/g,""))); }catch(e){ return null; }
+  } else {
+    try{ o = JSON.parse(s); }catch(e){ return null; }
+  }
+  if(!o) return null;
+  if(o.accounts) return null;                       /* это набор аккаунтов, не один */
+  const mults = (o.m || o.mults || []).map(x=>Math.round(num(x))).filter(x=>x>0);
+  if(!mults.length) return null;
+  const a = newAcc(o.n || o.name || "Импорт");
+  a.mults = mults;
+  a.ad = num(o.ad);
+  a.grail = !!(o.g || o.grail);
+  a.grailPct = num(o.gp != null ? o.gp : o.grailPct);
+  a.cur = num(o.c != null ? o.c : o.cur);
+  a.target = num(o.t != null ? o.t : o.target);
+  return a;
+}
+/* модальное окно: показать код / принять код */
+let modalOk = null;
+function modal(title, text, value, readonly, onOk){
+  $("#m-title").textContent = title;
+  $("#m-text").textContent = text;
+  const area = $("#m-area");
+  area.value = value || "";
+  area.readOnly = !!readonly;
+  modalOk = onOk;
+  $("#m-ok").textContent = readonly ? "Готово" : "Вставить";
+  $("#m-cancel").style.display = readonly ? "none" : "";
+  $("#modal").classList.add("on");
+  setTimeout(()=>{ area.focus(); if(readonly) area.select(); }, 30);
+}
+function closeModal(){ $("#modal").classList.remove("on"); modalOk = null; }
+$("#m-cancel").onclick = closeModal;
+$("#m-ok").onclick = ()=>{ const f = modalOk, v = $("#m-area").value; closeModal(); if(f) f(v); };
+$("#modal").onclick = e => { if(e.target.id === "modal") closeModal(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeModal(); });
+
+function shareOut(title, text, payload){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(payload)
+      .then(()=>toast("Код скопирован в буфер обмена"))
+      .catch(()=>modal(title, text, payload, true, null));
+  } else {
+    modal(title, text, payload, true, null);
+  }
+}
+function shareIn(title, text, handler){
+  const go = v => { if(v != null) handler(v); };
+  if(navigator.clipboard && navigator.clipboard.readText){
+    navigator.clipboard.readText()
+      .then(t => modal(title, text, t || "", false, go))
+      .catch(()=> modal(title, text, "", false, go));
+  } else {
+    modal(title, text, "", false, go);
+  }
+}
+
+/* ----------------------------------------------------------------- render */
+function renderTabs(){
+  const el = $("#tabs");
+  el.innerHTML = "";
+  state.accounts.forEach(a=>{
+    const b = document.createElement("div");
+    b.className = "tab" + (a.id===state.active ? " on" : "");
+    b.innerHTML = '<span class="dot"></span>' + escapeHtml(a.name || "Без имени");
+    b.onclick = ()=>{ state.active = a.id; save(); renderAll(); };
+    el.appendChild(b);
+  });
+  const add = document.createElement("div");
+  add.className = "tab add";
+  add.textContent = "+ Аккаунт";
+  add.onclick = ()=>{
+    const a = newAcc("Аккаунт " + (state.accounts.length+1));
+    state.accounts.push(a); state.active = a.id; save(); renderAll();
+  };
+  el.appendChild(add);
+}
+function renderMults(){
+  const a = acc(), el = $("#mults");
+  el.innerHTML = "";
+  if(!a.mults.length){
+    el.innerHTML = '<div style="color:var(--muted);font-size:12.5px">Множителей пока нет — добавьте ниже</div>';
+  }
+  a.mults.forEach((m,i)=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.inputMode = "numeric"; inp.value = fmt(m);
+    inp.onfocus = ()=> inp.value = String(a.mults[i]);
+    inp.onblur = ()=>{
+      const v = Math.round(num(inp.value));
+      a.mults[i] = v > 0 ? v : a.mults[i];
+      save(); renderMults(); renderEff(); calc();
+    };
+    inp.onkeydown = e => { if(e.key==="Enter") inp.blur(); };
+    const x = document.createElement("button");
+    x.className = "x"; x.innerHTML = "×"; x.title = "Удалить";
+    x.onclick = ()=>{ a.mults.splice(i,1); save(); renderMults(); renderEff(); calc(); };
+    c.appendChild(inp); c.appendChild(x);
+    el.appendChild(c);
+  });
+}
+function renderEff(){
+  const a = acc(), el = $("#eff");
+  if(!a.mults.length){ el.innerHTML = ""; return; }
+  const showAd = a.ad > 0;
+  let h = '<table><tr><th>Базовый КМ</th><th>без рекламы</th>' + (showAd?'<th>с рекламой</th>':'') + '</tr>';
+  a.mults.forEach(m=>{
+    h += '<tr><td>'+fmt(m)+'</td><td>'+fmt(effective(m,false,a))+'</td>'
+       + (showAd ? '<td class="ad">'+fmt(effective(m,true,a))+'</td>' : '') + '</tr>';
+  });
+  h += '</table>';
+  el.innerHTML = h;
+}
+function renderForm(){
+  const a = acc();
+  $("#f-name").value = a.name;
+  $("#f-cur").value = fmt(Math.round(num(a.cur)));
+  $("#f-target").value = fmt(Math.round(num(a.target)));
+  $("#f-ad").value = String(a.ad);
+  $("#f-grailpct").value = String(a.grailPct);
+  segSet("#seg-grail", a.grail ? "1" : "0");
+  $("#wrap-grailpct").style.display = a.grail ? "" : "none";
+  refreshGrailHint();
+  renderMults();
+  renderEff();
+}
+function segSet(sel,val){
+  document.querySelectorAll(sel+" button").forEach(b=>b.classList.toggle("on", b.dataset.v===val));
+}
+function refreshGrailHint(){
+  const a = acc();
+  const base = a.mults[0] || 60820;
+  $("#hint-grail").innerHTML = "Процент прибавляется к КМ <b>без рекламы</b>, бонус рекламы добавляется сверху."
+    + (a.grail && a.grailPct ? "<br>" + fmt(base) + " → <b>" + fmt(effective(base,false,a)) + "</b>"
+        + (a.ad>0 ? " → с рекламой <b>" + fmt(effective(base,true,a)) + "</b>" : "") : "");
+}
+function moveLine(i,m){
+  const a = acc();
+  const grailOn = a.grail && a.grailPct;
+  let chain = fmt(m.base);
+  if(m.useAd || grailOn) chain += " → " + fmt(m.v);
+  return '<div class="step"><span class="n">'+(i+1)+'</span>'
+    + '<span>КМ <span class="val">'+chain+'</span></span>'
+    + (grailOn ? '<span class="tag g">грааль +'+a.grailPct+'%</span>' : '')
+    + (m.useAd ? '<span class="tag">реклама +'+fmt(a.ad)+'</span>' : '')
+    + '<span>· очков за ход <span class="val">'+fmt(m.count)+'</span></span>'
+    + '<span>· итого <span class="val">'+fmt(m.v*m.count)+'</span></span></div>';
+}
+function solHtml(s, exact){
+  const f = s.moves.map(m=>'<span class="m">'+m.v+'</span><span class="x">x</span><span class="c">'+m.count+'</span>')
+                   .join('<span class="op">+</span>');
+  const plain = s.moves.map(m=>m.v+"x"+m.count).join(" + ");
+  return '<div class="sol'+(exact?" exact":"")+'">'
+    + '<div class="sol-head"><div class="formula">'+f+'</div>'
+    + (exact ? "" : '<span class="badge over">+'+fmt(s.over)+' сверху</span>') + '</div>'
+    + '<div class="steps">'+s.moves.map((m,i)=>moveLine(i,m)).join("")
+    + '<div class="step" style="margin-top:3px"><span class="n" style="background:transparent">Σ</span><span>сумма <span class="val">'+fmt(s.sum)+'</span></span></div></div>'
+    + '<button class="copy" data-copy="'+escapeHtml(plain)+'">копировать</button></div>';
+}
+function calc(){
+  const a = acc();
+  const all  = solve(a, false);
+  const noad = a.ad > 0 ? solve(a, true) : all;
+  const R = all.R;
+  $("#s-left").textContent = fmt(R);
+  $("#s-target").textContent = fmt(Math.round(num(a.target)));
+  $("#c-all").textContent  = "(" + (all.exact.length  || all.near.length)  + ")";
+  $("#c-noad").textContent = "(" + (noad.exact.length || noad.near.length) + ")";
+  document.querySelectorAll("#rtabs button").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
+
+  const r = resTab === "noad" ? noad : all;
+  const el = $("#res");
+  if(Math.round(num(a.target)) <= 0){
+    el.innerHTML = '<div class="empty"><span class="big">◆</span>Укажите, сколько нужно набрать,<br>и добавьте множители аккаунта.</div>';
+    return;
+  }
+  if(!a.mults.length){
+    el.innerHTML = '<div class="empty"><span class="big">＋</span>Добавьте хотя бы один множитель.</div>';
+    return;
+  }
+  if(R <= 0){
+    el.innerHTML = '<div class="empty"><span class="big">✓</span>Цель уже достигнута — добирать нечего.</div>';
+    return;
+  }
+  if(r.exact.length){
+    el.innerHTML = r.exact.map(s=>solHtml(s,true)).join("")
+      + (r.near.length ? '<div class="note">Ниже — варианты с небольшим превышением.</div>'
+          + r.near.map(s=>solHtml(s,false)).join("") : "");
+  } else if(r.near.length){
+    el.innerHTML = '<div class="note">Точного попадания за два хода нет. Ближайшие варианты с превышением:</div>'
+      + r.near.map(s=>solHtml(s,false)).join("");
+  } else {
+    el.innerHTML = '<div class="empty"><span class="big">∅</span>Ничего не найдено.<br>Проверьте множители и цель.</div>';
+  }
+  el.querySelectorAll("[data-copy]").forEach(b=>{
+    b.onclick = ()=>{
+      const t = b.getAttribute("data-copy");
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t).then(()=>toast("Скопировано: " + t)).catch(()=>toast(t));
+      } else toast(t);
+    };
+  });
+}
+function renderAll(){ renderTabs(); renderForm(); calc(); }
+
+/* ------------------------------------------------------------------ input */
+let t = null;
+const later = () => { clearTimeout(t); t = setTimeout(()=>{ save(); calc(); }, 220); };
+
+function bindNum(sel, key, extra){
+  const el = $(sel);
+  el.addEventListener("input", ()=>{ acc()[key] = num(el.value); if(extra) extra(); later(); });
+  el.addEventListener("focus", ()=>{ const v = acc()[key]; el.value = (v===""||v==null) ? "" : String(v); });
+  el.addEventListener("blur",  ()=>{
+    const a = acc();
+    a[key] = num(el.value);
+    el.value = fmt(Math.round(a[key]));
+    save(); calc();
+  });
+}
+bindNum("#f-cur","cur");
+bindNum("#f-target","target");
+bindNum("#f-ad","ad", ()=>{ renderEff(); refreshGrailHint(); });
+$("#f-grailpct").addEventListener("input", ()=>{
+  acc().grailPct = num($("#f-grailpct").value); renderEff(); refreshGrailHint(); later();
+});
+$("#f-name").addEventListener("input", ()=>{
+  acc().name = $("#f-name").value; renderTabs(); clearTimeout(t); t = setTimeout(save,300);
+});
+document.querySelectorAll("#seg-grail button").forEach(b=>b.onclick = ()=>{
+  acc().grail = b.dataset.v === "1"; save(); renderForm(); calc();
+});
+document.querySelectorAll("#rtabs button").forEach(b=>b.onclick = ()=>{ resTab = b.dataset.t; calc(); });
+
+$("#b-addmult").onclick = ()=>{
+  const el = $("#f-newmult"), v = Math.round(num(el.value));
+  if(v > 0 && acc().mults.indexOf(v) === -1){
+    acc().mults.push(v);
+    acc().mults.sort((x,y)=>y-x);
+    save(); renderMults(); renderEff(); refreshGrailHint(); calc();
+  }
+  el.value = ""; el.focus();
+};
+$("#f-newmult").addEventListener("keydown", e=>{ if(e.key==="Enter") $("#b-addmult").click(); });
+$("#b-calc").onclick = ()=>{
+  save(); calc();
+  if(window.innerWidth < 940) $("#res").scrollIntoView({behavior:"smooth", block:"start"});
+  else toast("Пересчитано");
+};
+
+/* --- аккаунты: копировать / вставить / дублировать / удалить --- */
+$("#b-copy").onclick = ()=>{
+  shareOut("Код аккаунта «" + acc().name + "»",
+           "Отправьте этот код другому игроку — он вставит его у себя кнопкой «Вставить».",
+           packAcc(acc()));
+};
+$("#b-paste").onclick = ()=>{
+  shareIn("Вставить аккаунт", "Вставьте код вида KARAS1:… — аккаунт добавится новой вкладкой.", txt=>{
+    const a = unpackAcc(txt);
+    if(!a){ toast("Не удалось прочитать код аккаунта"); return; }
+    state.accounts.push(a); state.active = a.id; save(); renderAll();
+    toast("Аккаунт «" + a.name + "» добавлен");
+  });
+};
+$("#b-dup").onclick = ()=>{
+  const a = acc(), c = newAcc(a.name + " (копия)", a);
+  state.accounts.push(c); state.active = c.id; save(); renderAll();
+};
+$("#b-del").onclick = ()=>{
+  if(state.accounts.length === 1){ toast("Нельзя удалить единственный аккаунт"); return; }
+  if(!confirm('Удалить аккаунт "' + acc().name + '"?')) return;
+  state.accounts = state.accounts.filter(x=>x.id !== state.active);
+  state.active = state.accounts[0].id;
+  save(); renderAll();
+};
+$("#b-exportall").onclick = ()=>{
+  shareOut("Все аккаунты", "Код со всеми аккаунтами — для переноса на другое устройство.",
+           "KARASALL1:" + b64e(JSON.stringify(state.accounts.map(a=>JSON.parse(b64d(packAcc(a).slice(7)))))));
+};
+$("#b-importall").onclick = ()=>{
+  shareIn("Вставить все аккаунты", "Код вида KARASALL1:… — аккаунты добавятся к существующим.", txt=>{
+    let s = String(txt||"").trim();
+    if(s.indexOf("KARASALL1:") !== 0){ toast("Ожидается код вида KARASALL1:…"); return; }
+    let list;
+    try{ list = JSON.parse(b64d(s.slice(10).replace(/\s/g,""))); }catch(e){ list = null; }
+    if(!Array.isArray(list) || !list.length){ toast("Не удалось прочитать код"); return; }
+    let n = 0;
+    list.forEach(o=>{ const a = unpackAcc(JSON.stringify(o)); if(a){ state.accounts.push(a); n++; } });
+    if(!n){ toast("Не удалось прочитать код"); return; }
+    state.active = state.accounts[state.accounts.length-1].id;
+    save(); renderAll(); toast("Добавлено аккаунтов: " + n);
+  });
+};
+
+$("#b-mail").onclick = ()=>{
+  const m = "chelovekrukzak@gmail.com";
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(m).then(()=>toast("Почта скопирована: " + m)).catch(()=>toast(m));
+  } else toast(m);
+};
+
+renderAll();
+})();
+</script>
+</body>
+</html>
