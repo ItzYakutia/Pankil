@@ -107,6 +107,14 @@ body{
   font:800 11px "Manrope",sans-serif;letter-spacing:0;
 }
 .okmark[hidden]{display:none}
+.okpill{
+  display:inline-flex;align-items:center;gap:5px;flex:none;
+  padding:3px 9px 3px 7px;border-radius:7px;
+  background:rgba(58,217,145,.15);color:var(--green);
+  font:700 10.5px "Manrope",sans-serif;text-transform:none;letter-spacing:.02em;
+}
+.okpill[hidden]{display:none}
+.okpill i{font-style:normal;font-size:11px;font-weight:800;line-height:1}
 .chev{margin-left:8px;color:var(--muted);font-size:10px;transition:transform .18s;flex:none}
 .card.folded .chev{transform:rotate(-90deg)}
 .card-points{border-color:rgba(242,181,68,.28);box-shadow:0 6px 26px rgba(242,181,68,.07)}
@@ -447,7 +455,8 @@ input.name{font-family:inherit;font-weight:700}
       </div>
 
       <div class="card card-points">
-        <h2><span class="ic">◆</span> Очки</h2>
+        <h2><span class="ic">◆</span> Очки
+          <span class="okpill" id="mark-points" hidden><i>✓</i>Пара найдена</span></h2>
         <div class="field">
           <label>Уже набрано</label>
           <input type="text" inputmode="numeric" id="f-cur" placeholder="0">
@@ -901,7 +910,9 @@ function calc(){
   $("#c-all").textContent  = "(" + all.total  + ")";
   $("#c-noad").textContent = "(" + noad.total + ")";
   document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
-  $("#mark-mults").hidden = !all.exact.some(s=>s.moves.length === 2);
+  const hasPair = all.exact.some(s=>s.moves.length === 2);
+  $("#mark-mults").hidden = !hasPair;
+  $("#mark-points").hidden = !hasPair;
   $("#b-view").classList.toggle("on", state.view === "full");
 
   const r = resTab === "noad" ? noad : all;
