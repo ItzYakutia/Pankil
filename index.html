@@ -288,6 +288,56 @@ input.name{font-family:inherit;font-weight:700}
   font-family:var(--mono);font-size:12px;outline:none;word-break:break-all;
 }
 .modal textarea:focus{border-color:rgba(242,181,68,.6)}
+.help-box{max-width:600px;max-height:86vh;display:flex;flex-direction:column;padding:0}
+.help-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:16px 18px;border-bottom:1px solid var(--line);flex:none;
+}
+.help-head h3{margin:0;font-size:16px}
+.help-x{
+  width:30px;height:30px;flex:none;border:1px solid var(--line);border-radius:9px;cursor:pointer;
+  background:transparent;color:var(--muted);font-size:19px;line-height:1;transition:.15s;
+}
+.help-x:hover{color:var(--txt);border-color:var(--line2)}
+.help-body{overflow-y:auto;padding:16px 18px 18px}
+.help-rule{margin:0 0 14px;color:var(--txt);font-size:13.5px;line-height:1.65;font-weight:500}
+.help-rule b{color:var(--gold2);font-family:var(--mono)}
+.legend{
+  display:flex;flex-wrap:wrap;gap:8px 16px;padding:12px 0 14px;margin-bottom:6px;
+  border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);
+  font-size:12px;color:var(--muted);
+}
+.legend span{display:flex;align-items:center;gap:7px}
+.tile{
+  width:26px;height:26px;flex:none;border-radius:6px;display:inline-grid;place-items:center;
+  font:800 11px "Manrope",sans-serif;color:#fff;font-style:normal;letter-spacing:.02em;
+}
+.tile.b{background:#0aa2e0}
+.tile.x2{background:#e91fb0}
+.tile.x3{background:#17a44b}
+.tile.c2{background:#f2b01e;color:#4a3400}
+.tile.c3{background:#e3242b}
+.help-tbl{display:flex;flex-direction:column;gap:2px;padding-top:8px}
+.hrow{
+  display:grid;grid-template-columns:96px 1fr;align-items:center;gap:12px;
+  padding:5px 8px;border-radius:9px;
+}
+.hrow:nth-child(odd){background:rgba(255,255,255,.035)}
+.hrow b{
+  font-family:var(--mono);font-size:14px;font-weight:700;color:var(--gold2);
+  text-align:right;letter-spacing:-.02em;
+}
+.hrow b span{
+  font:600 10.5px "Manrope",sans-serif;color:var(--muted);margin-left:5px;letter-spacing:0;
+}
+.hrow div{display:flex;gap:4px}
+.help-foot{margin:14px 0 0;color:var(--muted);font-size:11.5px;line-height:1.55}
+@media(max-width:560px){
+  .help-box{max-height:90vh}
+  .tile{width:23px;height:23px;font-size:10px}
+  .hrow{grid-template-columns:84px 1fr;gap:9px}
+  .hrow b{font-size:13px}
+}
 .modal .acts{display:flex;gap:9px;margin-top:13px}
 .modal .acts .btn{flex:1}
 </style>
@@ -381,6 +431,7 @@ input.name{font-family:inherit;font-weight:700}
 
       <div class="card">
         <button class="btn gold wide" id="b-calc">Рассчитать</button>
+        <button class="btn wide" id="b-help" style="margin-top:9px">Памятка: как считаются очки</button>
         <div class="note">Расчёт обновляется автоматически при изменении полей. Все аккаунты сохраняются в браузере.</div>
       </div>
     </div>
@@ -423,6 +474,29 @@ input.name{font-family:inherit;font-weight:700}
     <div class="acts">
       <button class="btn gold" id="m-ok">Готово</button>
       <button class="btn" id="m-cancel">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="help">
+  <div class="box help-box">
+    <div class="help-head">
+      <h3>Как считаются очки за ход</h3>
+      <button class="help-x" id="help-close" title="Закрыть">×</button>
+    </div>
+    <div class="help-body">
+      <p class="help-rule">Каждая следующая буква слова дороже предыдущей: первая даёт <b>1</b> очко,
+        вторая — <b>2</b>, третья — <b>3</b>, и так далее. Слово из пяти букв на обычных клетках — <b>15</b> очков.</p>
+      <div class="legend">
+        <span><i class="tile b"></i> обычная клетка</span>
+        <span><i class="tile x2">x2</i> буква ×2</span>
+        <span><i class="tile x3">x3</i> буква ×3</span>
+        <span><i class="tile c2">с2</i> слово ×2</span>
+        <span><i class="tile c3">с3</i> слово ×3</span>
+      </div>
+      <div class="help-tbl" id="help-tbl"></div>
+      <p class="help-foot">Множители слова не перемножаются между собой: даже если слово легло
+        на несколько клеток «с2», оно удваивается один раз.</p>
     </div>
   </div>
 </div>
@@ -931,6 +1005,47 @@ $("#b-importall").onclick = ()=>{
     save(); renderAll(); toast("Добавлено аккаунтов: " + n);
   });
 };
+
+/* --- памятка по очкам: тык открыл, тык закрыл --- */
+const HELP = [
+  [45,"c3 c3 c3 c3 c3"], [30,"c2 c2 c2 c2 c2"], [30,"c3 c3 c3 c3"], [20,"c2 c2 c2 c2"],
+  [18,"b b b x3"],  [18,"c3 c3 c3"], [16,"b b x3 b"], [15,"b b b b b"],
+  [14,"b x3 b b"],  [14,"b b b x2"], [13,"b b x2 b"], [12,"x3 b b b"],
+  [12,"b x2 b b"],  [12,"b b x3"],   [12,"c2 c2 c2"], [11,"x2 b b b"],
+  [10,"b x3 b"],    [10,"b b b b"],  [9,"c3 c3"],     [9,"b b x2"],
+  [8,"b x2 b"],     [8,"x3 b b"],    [7,"b x3"],      [7,"x2 b b"],
+  [6,"c2 c2"],      [6,"b b b"],     [5,"b x2"],      [5,"x3 b"],
+  [4,"x2 b"],       [3,"b b"]
+];
+const TILE = { b:"", x2:"x2", x3:"x3", c2:"с2", c3:"с3" };
+function buildHelp(){
+  const el = $("#help-tbl");
+  if(el.dataset.done) return;
+  el.dataset.done = "1";
+  const word = n => {
+    const t = n % 10, h = n % 100;
+    if(h >= 11 && h <= 14) return "очков";
+    if(t === 1) return "очко";
+    if(t >= 2 && t <= 4) return "очка";
+    return "очков";
+  };
+  el.innerHTML = HELP.map(r =>
+    '<div class="hrow"><b>' + r[0] + '<span>' + word(r[0]) + '</span></b><div>'
+    + r[1].split(" ").map(c=>'<i class="tile '+c+'">'+TILE[c]+'</i>').join("")
+    + '</div></div>').join("");
+}
+function toggleHelp(){
+  const m = $("#help");
+  if(m.classList.contains("on")){ m.classList.remove("on"); return; }
+  buildHelp();
+  m.classList.add("on");
+}
+$("#b-help").onclick = toggleHelp;
+$("#help-close").onclick = toggleHelp;
+$("#help").onclick = e => { if(e.target.id === "help") toggleHelp(); };
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && $("#help").classList.contains("on")) toggleHelp();
+});
 
 $("#b-mail").onclick = ()=>{
   const m = "chelovekrukzak@gmail.com";
