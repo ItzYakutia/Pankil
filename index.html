@@ -549,6 +549,8 @@ function solve(a, noAd){
   const seen = new Set();
   const push = (arr, sol) => { const k = keyOf(sol); if(seen.has(k)) return; seen.add(k); arr.push(sol); };
   const mk = moves => {
+    /* ход с рекламой всегда показываем вторым */
+    if(moves.length === 2 && moves[0].useAd && !moves[1].useAd) moves = [moves[1], moves[0]];
     const sum = moves.reduce((s,m)=>s + m.v*m.count, 0);
     return { moves:moves, sum:sum, over:sum-R,
              maxC: moves.reduce((s,m)=>Math.max(s,m.count),0),
