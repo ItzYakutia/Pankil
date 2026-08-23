@@ -173,7 +173,7 @@ input.name{font-family:inherit;font-weight:700}
 .rtabs .viewbtn.on{color:var(--gold2);border-color:rgba(242,181,68,.5);background:rgba(242,181,68,.1)}
 
 /* ---------- компактный список ---------- */
-.rows{display:grid;grid-template-columns:max-content max-content max-content 1fr;gap:0 0}
+.rows{display:grid;grid-template-columns:max-content max-content max-content}
 .row{
   display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;
   padding:7px 10px;border-radius:9px;cursor:pointer;transition:.12s;
@@ -184,10 +184,6 @@ input.name{font-family:inherit;font-weight:700}
 .row .x{color:var(--muted);font-weight:500}
 .row .c{color:var(--txt)}
 .row .op{color:var(--muted);padding:0 10px;font-weight:500}
-.row .over{
-  justify-self:end;padding-left:14px;color:var(--gold2);opacity:.8;
-  font:600 11.5px "Manrope",sans-serif;
-}
 @media(max-width:560px){
   .rtabs button{padding:9px 7px;font-size:12.5px}
   .rtabs .viewbtn{padding:5px 8px;font-size:11px}
@@ -203,19 +199,13 @@ input.name{font-family:inherit;font-weight:700}
   transition:.16s;position:relative;overflow:hidden;
 }
 .sol:hover{border-color:var(--line2);background:rgba(255,255,255,.055)}
-.sol::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);opacity:.75}
-.sol.exact::before{background:var(--green)}
+.sol::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--green);opacity:.75}
 .sol-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;flex-wrap:wrap}
 .formula{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.45}
 .formula .op{color:var(--muted);margin:0 5px;font-weight:500}
 .formula .x{color:var(--muted);font-weight:500}
 .formula .m{color:var(--gold)}
 .formula .c{color:var(--txt)}
-.badge{
-  flex:none;padding:4px 9px;border-radius:7px;font:700 10.5px "Manrope",sans-serif;
-  text-transform:uppercase;letter-spacing:.07em;
-}
-.badge.over{background:rgba(242,181,68,.15);color:var(--gold2)}
 .steps{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)}
 .step{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .step .n{
@@ -543,35 +533,13 @@ function exactXs(a,b,R,cap,lo,hi){
   }
   return out;
 }
-/* Минимально возможное превышение для пары (a,b) при x>=1, y>=1.
-   Сумма = a + b + (a'u + b'v)*g, значит нужно наименьшее представимое
-   t = a'u + b'v, не меньшее t0. Всё, что больше числа Фробениуса
-   (a'-1)(b'-1), представимо сразу; иначе достаточно перебрать остатки
-   по меньшему коэффициенту — их не больше a'. */
-function minOver(a,b,R){
-  const R1 = R - a - b;
-  if(R1 <= 0) return a + b - R;               /* хватает по одному ходу */
-  const g = gcd(a,b);
-  let A = a/g, B = b/g;
-  if(A > B){ const t = A; A = B; B = t; }     /* пробегаем по меньшему */
-  const t0 = Math.ceil(R1/g);
-  if(A === 1 || t0 >= (A-1)*(B-1)) return g*t0 - R1;
-  const step = A > 200000 ? Math.ceil(A/200000) : 1;   /* страховка от экзотики */
-  let best = Infinity;
-  for(let v=0; v<A; v+=step){
-    const rem = t0 - B*v;
-    const t = rem <= 0 ? B*v : B*v + A*Math.ceil(rem/A);
-    if(t < best){ best = t; if(best === t0) break; }
-  }
-  return g*best - R1;
-}
 function keyOf(sol){
   return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
 }
 /* noAd = true -> искать только среди ходов без рекламы */
 function solve(a, noAd){
   const R = Math.max(0, Math.round(num(a.target)) - Math.round(num(a.cur)));
-  const res = { R:R, exact:[], near:[] };
+  const res = { R:R, exact:[] };
   if(R <= 0) return res;
   let vs = variants(a);
   if(noAd) vs = vs.filter(v=>!v.useAd);
@@ -609,39 +577,6 @@ function solve(a, noAd){
   }
   res.exact.sort((p,q)=> p.maxC - q.maxC || p.totC - q.totC || p.moves.length - q.moves.length);
   res.exact = res.exact.slice(0,60);
-
-  if(res.exact.length >= 3) return res;
-
-  /* --- ближайшие с превышением --- */
-  const near = [];
-  for(const v of vs) near.push(mk([{base:v.base,useAd:v.useAd,v:v.v,count:Math.ceil(R/v.v)}]));
-  for(let i=0;i<vs.length;i++){
-    for(let j=i;j<vs.length;j++){
-      const A = vs[i], B = vs[j];
-      /* сразу считаем минимальное превышение пары, а потом берём
-         красивые расклады уже под точную сумму R + превышение */
-      const over = minOver(A.v, B.v, R);
-      const R2 = R + over;
-      const xs = exactXs(A.v, B.v, R2, 3, 1, Math.floor((R2 - B.v)/A.v));
-      for(const x of xs){
-        const y = (R2 - A.v*x)/B.v;
-        if(y < 1) continue;
-        near.push(mk([
-          {base:A.base,useAd:A.useAd,v:A.v,count:x},
-          {base:B.base,useAd:B.useAd,v:B.v,count:y}
-        ]));
-      }
-    }
-  }
-  near.sort((p,q)=> p.over - q.over || p.maxC - q.maxC || p.totC - q.totC);
-  const out = [], seen2 = new Set();
-  for(const s of near){
-    const k = keyOf(s);
-    if(seen2.has(k) || seen.has(k)) continue;
-    seen2.add(k); out.push(s);
-    if(out.length >= 12) break;
-  }
-  res.near = out;
   return res;
 }
 
@@ -807,22 +742,20 @@ function moveLine(i,m){
     + '<span>· очков за ход <span class="val">'+fmt(m.count)+'</span></span>'
     + '<span>· итого <span class="val">'+fmt(m.v*m.count)+'</span></span></div>';
 }
-function rowHtml(s, exact){
+function rowHtml(s){
   const plain = s.moves.map(m=>m.v+"x"+m.count).join(" + ");
   const term = m => '<span class="m">'+m.v+'</span><span class="x">x</span><span class="c">'+m.count+'</span>';
   let html = '<span>'+term(s.moves[0])+'</span>';
   html += s.moves[1] ? '<span class="op">+</span><span>'+term(s.moves[1])+'</span>'
                      : '<span class="op"></span><span></span>';
-  html += '<span class="over">' + (exact ? "" : "+"+fmt(s.over)) + '</span>';
   return '<div class="row" data-copy="'+escapeHtml(plain)+'" title="Нажмите, чтобы скопировать">'+html+'</div>';
 }
-function solHtml(s, exact){
+function solHtml(s){
   const f = s.moves.map(m=>'<span class="m">'+m.v+'</span><span class="x">x</span><span class="c">'+m.count+'</span>')
                    .join('<span class="op">+</span>');
   const plain = s.moves.map(m=>m.v+"x"+m.count).join(" + ");
-  return '<div class="sol'+(exact?" exact":"")+'">'
-    + '<div class="sol-head"><div class="formula">'+f+'</div>'
-    + (exact ? "" : '<span class="badge over">+'+fmt(s.over)+' сверху</span>') + '</div>'
+  return '<div class="sol">'
+    + '<div class="sol-head"><div class="formula">'+f+'</div></div>'
     + '<div class="steps">'+s.moves.map((m,i)=>moveLine(i,m)).join("")
     + '<div class="step" style="margin-top:3px"><span class="n" style="background:transparent">Σ</span><span>сумма <span class="val">'+fmt(s.sum)+'</span></span></div></div>'
     + '<button class="copy" data-copy="'+escapeHtml(plain)+'">копировать</button></div>';
@@ -834,8 +767,8 @@ function calc(){
   const R = all.R;
   $("#s-left").textContent = fmt(R);
   $("#s-target").textContent = fmt(Math.round(num(a.target)));
-  $("#c-all").textContent  = "(" + (all.exact.length  || all.near.length)  + ")";
-  $("#c-noad").textContent = "(" + (noad.exact.length || noad.near.length) + ")";
+  $("#c-all").textContent  = "(" + all.exact.length  + ")";
+  $("#c-noad").textContent = "(" + noad.exact.length + ")";
   document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
   $("#b-view").classList.toggle("on", state.view === "full");
 
@@ -854,18 +787,12 @@ function calc(){
     return;
   }
   const full = state.view === "full";
-  const one  = (sol, exact) => full ? solHtml(sol, exact) : rowHtml(sol, exact);
-  const list = (arr, exact) => full ? arr.map(x=>one(x,exact)).join("")
-                                    : '<div class="rows">' + arr.map(x=>one(x,exact)).join("") + '</div>';
   if(r.exact.length){
-    el.innerHTML = list(r.exact, true)
-      + (r.near.length ? '<div class="note">Ниже — варианты с небольшим превышением.</div>'
-          + list(r.near, false) : "");
-  } else if(r.near.length){
-    el.innerHTML = '<div class="note">Точного попадания за два хода нет. Ближайшие варианты с превышением:</div>'
-      + list(r.near, false);
+    el.innerHTML = full
+      ? r.exact.map(solHtml).join("")
+      : '<div class="rows">' + r.exact.map(rowHtml).join("") + '</div>';
   } else {
-    el.innerHTML = '<div class="empty"><span class="big">∅</span>Ничего не найдено.<br>Проверьте множители и цель.</div>';
+    el.innerHTML = '<div class="empty"><span class="big">∅</span>Точных вариантов за два хода нет.<br>Проверьте цель и множители.</div>';
   }
   el.querySelectorAll("[data-copy]").forEach(b=>{
     b.onclick = ()=>{
@@ -885,7 +812,7 @@ const later = () => { clearTimeout(t); t = setTimeout(()=>{ save(); calc(); }, 2
 function bindNum(sel, key, extra){
   const el = $(sel);
   el.addEventListener("input", ()=>{ acc()[key] = num(el.value); if(extra) extra(); later(); });
-  el.addEventListener("focus", ()=>{ const v = acc()[key]; el.value = (v===""||v==null) ? "" : String(v); });
+  el.addEventListener("focus", ()=>{ const v = num(acc()[key]); el.value = v ? String(v) : ""; });
   el.addEventListener("blur",  ()=>{
     const a = acc();
     a[key] = num(el.value);
