@@ -522,9 +522,10 @@ function modinv(a,m){
   return ((r[1]%m)+m)%m;
 }
 /* Целые x из [lo..hi], при которых (R - a*x) делится на b.
-   Решения идут арифметической прогрессией с шагом b/НОД. Если их больше cap,
-   берём окно вокруг равновесия x ≈ y: там самые ровные расклады, а число
-   очков за ход растёт в обе стороны от него. out.total — сколько всего есть. */
+   Решения идут арифметической прогрессией с шагом b/НОД. Сумма очков
+   x + y = R/b - x*(a-b)/b, то есть при a > b она тем меньше, чем больше x.
+   Поэтому, если решений больше cap, берём хвост прогрессии — там самые
+   выгодные расклады. out.total — сколько решений всего. */
 function exactXs(a,b,R,cap,lo,hi){
   const out = []; out.total = 0;
   if(hi < lo) return out;
@@ -543,10 +544,7 @@ function exactXs(a,b,R,cap,lo,hi){
     for(let k=0;k<total;k++) out.push(first + k*bp);
     return out;
   }
-  let kb = Math.round((R/(a+b) - first)/bp);          /* равновесие x ≈ y */
-  let from = kb - (cap >> 1);
-  if(from < 0) from = 0;
-  if(from + cap > total) from = total - cap;
+  const from = total - cap;                           /* хвост: наибольшие x */
   for(let i=0;i<cap;i++) out.push(first + (from+i)*bp);
   return out;
 }
@@ -601,8 +599,10 @@ function solve(a, noAd){
     }
     if(res.exact.length > 6000) break;
   }
-  /* сначала варианты в один ход, потом парные — от меньшего числа очков за ход */
-  res.exact.sort((p,q)=> p.moves.length - q.moves.length || p.maxC - q.maxC || p.totC - q.totC);
+  /* сначала варианты в один ход, потом парные — от меньшей суммы очков за оба
+     хода: чем крупнее задействованные КМ, тем меньше очков придётся набирать.
+     При равной сумме вперёд идёт тот, где меньше очков за один ход. */
+  res.exact.sort((p,q)=> p.moves.length - q.moves.length || p.totC - q.totC || p.maxC - q.maxC);
   res.exact = res.exact.slice(0, SHOWN);
   return res;
 }
@@ -820,7 +820,7 @@ function calc(){
       : '<div class="rows">' + r.exact.map(rowHtml).join("") + '</div>')
       + (r.total > r.exact.length
           ? '<div class="note">Показаны ' + fmt(r.exact.length) + ' самых выгодных вариантов из '
-            + fmt(r.total) + ' — в них за ход нужно набрать меньше всего очков.</div>'
+            + fmt(r.total) + ' — в них нужно набрать меньше всего очков суммарно.</div>'
           : "");
   } else {
     el.innerHTML = '<div class="empty"><span class="big">∅</span>Точных вариантов за два хода нет.<br>Проверьте цель и множители.</div>';
