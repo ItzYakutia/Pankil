@@ -170,6 +170,11 @@ input.name{font-family:inherit;font-weight:700}
 .btn.ghost{background:transparent;color:var(--muted);font-weight:600}
 .btn.danger:hover{border-color:rgba(255,123,114,.5);color:var(--red);background:rgba(255,123,114,.08)}
 
+.eff-btn{
+  margin-top:11px;padding:8px 13px;font-size:12px;color:var(--muted);
+  background:transparent;font-weight:600;
+}
+.eff-btn:hover{color:var(--txt)}
 .eff{margin-top:12px;border-top:1px dashed var(--line);padding-top:11px}
 .eff table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:15px}
 .eff th{color:var(--muted);font:600 10.5px "Manrope",sans-serif;text-transform:uppercase;letter-spacing:.08em;text-align:right;padding:0 0 6px}
@@ -423,7 +428,8 @@ input.name{font-family:inherit;font-weight:700}
             <input type="text" inputmode="numeric" id="f-newmult" placeholder="Новый множитель">
             <button class="btn gold" id="b-addmult">Добавить</button>
           </div>
-          <div class="eff" id="eff"></div>
+          <button class="btn eff-btn" id="b-eff" aria-expanded="false">Подробно</button>
+          <div class="eff" id="eff" hidden></div>
         </div>
       </div>
 
@@ -570,6 +576,7 @@ const save = () => { try{ localStorage.setItem(LS, JSON.stringify(state)); }catc
 const acc = () => state.accounts.find(a=>a.id===state.active) || state.accounts[0];
 let resTab = "all";
 if(state.view !== "full" && state.view !== "short") state.view = "short";
+state.eff = !!state.eff;   /* показана ли таблица эффективных КМ */
 
 /* -------------------------------------------------------------- utilities */
 function num(v){
@@ -831,7 +838,11 @@ function renderMults(){
   });
 }
 function renderEff(){
-  const a = acc(), el = $("#eff");
+  const a = acc(), el = $("#eff"), btn = $("#b-eff");
+  btn.hidden = !a.mults.length;
+  el.hidden = !state.eff || !a.mults.length;
+  btn.textContent = state.eff ? "Скрыть подробности" : "Подробно";
+  btn.setAttribute("aria-expanded", String(!!state.eff));
   if(!a.mults.length){ el.innerHTML = ""; return; }
   const showAd = a.ad > 0;
   let h = '<table><tr><th>Базовый КМ</th><th>без рекламы</th>' + (showAd?'<th>с рекламой</th>':'') + '</tr>';
@@ -985,13 +996,13 @@ $("#b-view").onclick = ()=>{
 $("#b-addmult").onclick = ()=>{
   const el = $("#f-newmult"), v = Math.round(num(el.value));
   if(v > 0 && acc().mults.indexOf(v) === -1){
-    acc().mults.push(v);
-    acc().mults.sort((x,y)=>y-x);
+    acc().mults.push(v);                    /* порядок ввода не трогаем */
     save(); renderMults(); renderEff(); refreshGrailHint(); calc();
   }
   el.value = ""; el.focus();
 };
 $("#f-newmult").addEventListener("keydown", e=>{ if(e.key==="Enter") $("#b-addmult").click(); });
+$("#b-eff").onclick = ()=>{ state.eff = !state.eff; save(); renderEff(); };
 $("#b-calc").onclick = ()=>{
   save(); calc();
   if(window.innerWidth < 940) $("#res").scrollIntoView({behavior:"smooth", block:"start"});
