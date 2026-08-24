@@ -742,12 +742,13 @@ function unpackAcc(txt){
   }
   if(!o) return null;
   if(o.accounts) return null;                       /* это набор аккаунтов, не один */
-  const mults = (o.m || o.mults || []).map(x=>Math.round(num(x))).filter(x=>x>0);
-  if(!mults.length) return null;
+  const clean = v => (v || []).map(x=>Math.round(num(x))).filter(x=>x>0);
+  const ms = clean(o.m || o.mults), gms = clean(o.gm || o.gmults);
+  if(!ms.length && !gms.length) return null;        /* хотя бы один набор должен быть */
   const a = newAcc(o.n || o.name || "Импорт");
-  a.mults = mults;
+  a.mults = ms;
+  a.gmults = gms;
   a.ad = num(o.ad);
-  a.gmults = (o.gm || o.gmults || []).map(x=>Math.round(num(x))).filter(x=>x>0);
   a.grail = !!(o.g || o.grail);
   a.cur = num(o.c != null ? o.c : o.cur);
   a.target = num(o.t != null ? o.t : o.target);
@@ -930,8 +931,10 @@ function calc(){
     el.innerHTML = '<div class="empty"><span class="big">◆</span>Укажите, сколько нужно набрать,<br>и добавьте множители аккаунта.</div>';
     return;
   }
-  if(!a.mults.length){
-    el.innerHTML = '<div class="empty"><span class="big">＋</span>Добавьте хотя бы один множитель.</div>';
+  if(!mults(a).length){
+    el.innerHTML = '<div class="empty"><span class="big">＋</span>'
+      + (a.grail ? 'Добавьте хотя бы один множитель с Граалем.' : 'Добавьте хотя бы один множитель.')
+      + '</div>';
     return;
   }
   if(R <= 0){
