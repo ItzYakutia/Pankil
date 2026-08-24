@@ -139,6 +139,20 @@ input.name{font-family:inherit;font-weight:700}
 .seg button.on{background:linear-gradient(145deg,rgba(242,181,68,.9),rgba(224,154,36,.85));color:#22160a;box-shadow:0 3px 10px rgba(242,181,68,.25)}
 
 /* ---------- multipliers ---------- */
+.grail{
+  display:inline-flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:12px;
+  padding:8px 14px 8px 10px;border-radius:11px;
+  background:rgba(0,0,0,.28);border:1px solid var(--line);
+  color:var(--muted);font:700 12.5px "Manrope",sans-serif;transition:.15s;
+}
+.grail:hover{border-color:var(--line2);color:var(--txt)}
+.grail .box{
+  width:18px;height:18px;flex:none;border-radius:6px;border:1.5px solid var(--line2);
+  display:grid;place-items:center;font:800 11px "Manrope",sans-serif;font-style:normal;
+  color:transparent;transition:.15s;
+}
+.grail.on{border-color:rgba(242,181,68,.5);background:rgba(242,181,68,.1);color:var(--gold2)}
+.grail.on .box{background:linear-gradient(145deg,var(--gold2),#e5a028);border-color:transparent;color:#22160a}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:11px}
 .chip{
   display:flex;align-items:center;gap:2px;padding:5px 6px 5px 10px;border-radius:10px;
@@ -423,6 +437,9 @@ input.name{font-family:inherit;font-weight:700}
           <span class="okpill" id="mark-mults" hidden><i>✓</i>Пара найдена</span>
           <span class="h2-hint" id="hint-mults"></span><span class="chev">▾</span></h2>
         <div class="card-body">
+          <button class="grail" id="b-grail" aria-pressed="false" type="button">
+            <i class="box">✓</i><span id="grail-label">Грааль</span>
+          </button>
           <div class="chips" id="mults"></div>
           <div class="addrow">
             <input type="text" inputmode="numeric" id="f-newmult" placeholder="Новый множитель">
@@ -440,23 +457,7 @@ input.name{font-family:inherit;font-weight:700}
             <label>Бонус от рекламы (+ к КМ)</label>
             <input type="text" inputmode="numeric" id="f-ad" placeholder="0">
           </div>
-          <div class="field">
-            <label>Грааль</label>
-            <div class="seg" id="seg-grail">
-              <button data-v="1">Грааль есть</button>
-              <button data-v="0">Грааля нет</button>
-            </div>
-          </div>
-          <div class="field" id="wrap-gmults">
-            <label>Множители с Граалем</label>
-            <div class="chips" id="gmults"></div>
-            <div class="addrow">
-              <input type="text" inputmode="numeric" id="f-newgmult" placeholder="Множитель с Граалем">
-              <button class="btn gold" id="b-addgmult">Добавить</button>
-            </div>
-            <div class="hint">Впишите множители так, как они выглядят в игре с Граалем. Калькулятор будет
-              подбирать ходы и по ним, и по обычным множителям. Бонус от рекламы прибавляется к ним так же.</div>
-          </div>
+
         </div>
       </div>
 
@@ -607,22 +608,22 @@ function effective(base, useAd, a){
   if(useAd) v += Math.round(num(a.ad));
   return v;
 }
+/* С Граалем и без него — разные наборы множителей, вперемешку они не играются */
+function mults(a){ return a.grail ? a.gmults : a.mults; }
 function variants(a){
   const out = [], seen = new Set();
   const modes = a.ad > 0 ? [false,true] : [false];
-  const add = (m, grail) => {
-    if(!m || m <= 0) return;
+  for(const m of mults(a)){
+    if(!m || m <= 0) continue;
     for(const useAd of modes){
       const v = effective(m, useAd, a);
       if(v <= 0) continue;
-      const k = m + "|" + useAd + "|" + (grail ? 1 : 0);
+      const k = m + "|" + useAd;
       if(seen.has(k)) continue;
       seen.add(k);
-      out.push({base:m, useAd:useAd, grail:grail, v:v});
+      out.push({base:m, useAd:useAd, v:v});
     }
-  };
-  for(const m of a.mults) add(m, false);
-  if(a.grail) for(const m of a.gmults) add(m, true);
+  }
   return out.sort((x,y)=>y.v-x.v);
 }
 function gcd(a,b){ while(b){ const t=a%b; a=b; b=t; } return a; }
@@ -667,7 +668,7 @@ function exactXs(a,b,R,cap,lo,hi){
 const MINC  = 3;    /* меньше трёх очков за один ход в игре не набрать */
 const SHOWN = 100;  /* сколько вариантов показываем, если их найдено больше */
 function keyOf(sol){
-  return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+(m.grail?1:0)+":"+m.count).sort().join("|");
+  return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
 }
 /* noAd = true -> искать только среди ходов без рекламы */
 function solve(a, noAd){
@@ -692,7 +693,7 @@ function solve(a, noAd){
   for(const v of vs){
     if(R % v.v === 0 && R/v.v >= MINC){
       res.total++;
-      push(res.exact, mk([{base:v.base,useAd:v.useAd,grail:v.grail,v:v.v,count:R/v.v}]));
+      push(res.exact, mk([{base:v.base,useAd:v.useAd,v:v.v,count:R/v.v}]));
     }
   }
   /* --- два хода: точные попадания --- */
@@ -707,8 +708,8 @@ function solve(a, noAd){
         const y = (R - A.v*x)/B.v;
         if(y < MINC) continue;
         push(res.exact, mk([
-          {base:A.base,useAd:A.useAd,grail:A.grail,v:A.v,count:x},
-          {base:B.base,useAd:B.useAd,grail:B.grail,v:B.v,count:y}
+          {base:A.base,useAd:A.useAd,v:A.v,count:x},
+          {base:B.base,useAd:B.useAd,v:B.v,count:y}
         ]));
         if(res.exact.length > 6000) break;
       }
@@ -839,13 +840,18 @@ function renderChips(list, elId, empty){
   });
 }
 function renderMults(){
-  const a = acc();
-  renderChips(a.mults, "#mults", "Множителей пока нет — добавьте ниже");
-  renderChips(a.gmults, "#gmults", "Пока не заданы — добавьте ниже");
+  const a = acc(), on = !!a.grail;
+  renderChips(mults(a), "#mults",
+    on ? "Множителей с Граалем пока нет — добавьте ниже" : "Множителей пока нет — добавьте ниже");
+  const btn = $("#b-grail");
+  btn.classList.toggle("on", on);
+  btn.setAttribute("aria-pressed", String(on));
+  $("#grail-label").textContent = on ? "С Граалем" : "Грааль";
+  $("#f-newmult").placeholder = on ? "Множитель с Граалем" : "Новый множитель";
 }
 function renderEff(){
   const a = acc(), el = $("#eff"), btn = $("#b-eff");
-  const rows = a.mults.map(m=>[m,false]).concat(a.grail ? a.gmults.map(m=>[m,true]) : []);
+  const rows = mults(a).map(m=>[m,!!a.grail]);
   btn.hidden = !rows.length;
   el.hidden = !state.eff || !rows.length;
   btn.textContent = state.eff ? "Скрыть подробности" : "Подробно";
@@ -868,8 +874,6 @@ function renderForm(){
   $("#f-cur").value = showNum(a.cur);
   $("#f-target").value = showNum(a.target);
   $("#f-ad").value = showNum(a.ad);
-  segSet("#seg-grail", a.grail ? "1" : "0");
-  $("#wrap-gmults").style.display = a.grail ? "" : "none";
   renderMults();
   renderEff();
   foldHints();
@@ -883,7 +887,6 @@ function moveLine(i,m){
   if(m.useAd) chain += " → " + fmt(m.v);
   return '<div class="step"><span class="n">'+(i+1)+'</span>'
     + '<span>КМ <span class="val">'+chain+'</span></span>'
-    + (m.grail ? '<span class="tag g">грааль</span>' : '')
     + (m.useAd ? '<span class="tag">реклама +'+fmt(a.ad)+'</span>' : '')
     + '<span>· очков за ход <span class="val">'+fmt(m.count)+'</span></span>'
     + '<span>· итого <span class="val">'+fmt(m.v*m.count)+'</span></span></div>';
@@ -979,9 +982,10 @@ bindNum("#f-ad","ad", ()=>{ renderEff(); });
 $("#f-name").addEventListener("input", ()=>{
   acc().name = $("#f-name").value; renderTabs(); clearTimeout(t); t = setTimeout(save,300);
 });
-document.querySelectorAll("#seg-grail button").forEach(b=>b.onclick = ()=>{
-  acc().grail = b.dataset.v === "1"; save(); renderForm(); calc();
-});
+$("#b-grail").onclick = ()=>{
+  acc().grail = !acc().grail;
+  save(); renderMults(); renderEff(); calc();
+};
 document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.onclick = ()=>{ resTab = b.dataset.t; calc(); });
 $("#b-view").onclick = ()=>{
   state.view = state.view === "full" ? "short" : "full";
@@ -989,23 +993,15 @@ $("#b-view").onclick = ()=>{
 };
 
 $("#b-addmult").onclick = ()=>{
-  const el = $("#f-newmult"), v = Math.round(num(el.value));
-  if(v > 0 && acc().mults.indexOf(v) === -1){
-    acc().mults.push(v);                    /* порядок ввода не трогаем */
+  const el = $("#f-newmult"), v = Math.round(num(el.value)), list = mults(acc());
+  if(v > 0 && list.indexOf(v) === -1){
+    list.push(v);                           /* порядок ввода не трогаем */
     save(); renderMults(); renderEff(); calc();
   }
   el.value = ""; el.focus();
 };
 $("#f-newmult").addEventListener("keydown", e=>{ if(e.key==="Enter") $("#b-addmult").click(); });
-$("#b-addgmult").onclick = ()=>{
-  const el = $("#f-newgmult"), v = Math.round(num(el.value));
-  if(v > 0 && acc().gmults.indexOf(v) === -1){
-    acc().gmults.push(v);
-    save(); renderMults(); renderEff(); calc();
-  }
-  el.value = ""; el.focus();
-};
-$("#f-newgmult").addEventListener("keydown", e=>{ if(e.key==="Enter") $("#b-addgmult").click(); });
+
 $("#b-eff").onclick = ()=>{ state.eff = !state.eff; save(); renderEff(); };
 $("#b-calc").onclick = ()=>{
   save(); calc();
@@ -1067,19 +1063,20 @@ function applyFold(){
 function foldHints(){
   const a = acc();
   $("#hint-acc").textContent = state.fold.acc ? a.name : "";
-  const n = a.mults.length;
+  const n = mults(a).length;
   /* на узком экране рядом с плашкой «Пара найдена» оставляем только счёт */
   const tight = window.innerWidth < 560 && !$("#mark-mults").hidden;
   $("#hint-mults").textContent = state.fold.mults
-    ? (n ? (tight ? n + " шт." : n + " шт.: " + a.mults.slice(0,3).map(fmt).join(", ") + (n > 3 ? "…" : ""))
-         : "не заданы")
+    ? ((a.grail ? "грааль · " : "") + (n
+         ? (tight ? n + " шт." : n + " шт.: " + mults(a).slice(0,3).map(fmt).join(", ") + (n > 3 ? "…" : ""))
+         : "не заданы"))
     : "";
   const tgt = Math.round(num(a.target));
   $("#hint-points").textContent = state.fold.points ? (tgt ? "цель " + fmt(tgt) : "цель не задана") : "";
   if(state.fold.bonus){
     const parts = [];
     if(num(a.ad)) parts.push("реклама +" + fmt(a.ad));
-    if(a.grail) parts.push("грааль: " + (a.gmults.length ? a.gmults.length + " шт." : "не задан"));
+
     $("#hint-bonus").textContent = parts.length ? parts.join(" · ") : "нет";
   } else $("#hint-bonus").textContent = "";
 }
