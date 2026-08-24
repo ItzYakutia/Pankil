@@ -447,10 +447,15 @@ input.name{font-family:inherit;font-weight:700}
               <button data-v="0">Грааля нет</button>
             </div>
           </div>
-          <div class="field" id="wrap-grailpct">
-            <label>Бонус Грааля, % к КМ</label>
-            <input type="text" inputmode="decimal" id="f-grailpct" placeholder="0">
-            <div class="hint" id="hint-grail">Процент прибавляется к КМ без рекламы, бонус рекламы добавляется уже сверху.</div>
+          <div class="field" id="wrap-gmults">
+            <label>Множители с Граалем</label>
+            <div class="chips" id="gmults"></div>
+            <div class="addrow">
+              <input type="text" inputmode="numeric" id="f-newgmult" placeholder="Множитель с Граалем">
+              <button class="btn gold" id="b-addgmult">Добавить</button>
+            </div>
+            <div class="hint">Впишите множители так, как они выглядят в игре с Граалем. Калькулятор будет
+              подбирать ходы и по ним, и по обычным множителям. Бонус от рекламы прибавляется к ним так же.</div>
           </div>
         </div>
       </div>
@@ -558,9 +563,9 @@ function newAcc(name, src){
   return {
     id:uid(), name:name||"Новый аккаунт",
     mults: src ? src.mults.slice() : [],
+    gmults: src ? (src.gmults || []).slice() : [],   /* множители с Граалем */
     ad: src ? src.ad : 0,
     grail: src ? src.grail : false,
-    grailPct: src ? src.grailPct : 0,
     cur: src ? src.cur : 0,
     target: src ? src.target : 0
   };
@@ -572,6 +577,7 @@ if(!state || !state.accounts || !state.accounts.length){
   state.active = state.accounts[0].id;
 }
 if(!state.accounts.some(a=>a.id===state.active)) state.active = state.accounts[0].id;
+state.accounts.forEach(a=>{ if(!Array.isArray(a.gmults)) a.gmults = []; });
 const save = () => { try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} };
 const acc = () => state.accounts.find(a=>a.id===state.active) || state.accounts[0];
 let resTab = "all";
@@ -594,35 +600,29 @@ function escapeHtml(s){
 }
 
 /* ------------------------------------------------------------ math engine */
-/* Грааль даёт процент к базовому КМ; бонус рекламы прибавляется уже после.
-   Считаем на целых числах: 60820 * 1.005 в двоичной дроби даёт 60819.99…,
-   и обычное умножение теряло единицу на каждом втором проценте. */
-function withPercent(v, pct){
-  const pm = Math.round(num(pct) * 1000);            /* процент с точностью до 0.001 */
-  const n = Math.round(v) * (100000 + pm);
-  const q = Math.floor(n / 100000), rem = n - q*100000;
-  return q + (rem*2 >= 100000 ? 1 : 0);              /* .5 округляем вверх */
-}
+/* Множители с Граалем игрок вводит вручную, поэтому считать проценты не нужно:
+   к любому множителю добавляется только бонус от рекламы. */
 function effective(base, useAd, a){
   let v = Math.round(base);
-  if(a.grail && num(a.grailPct)) v = withPercent(v, a.grailPct);
   if(useAd) v += Math.round(num(a.ad));
   return v;
 }
 function variants(a){
   const out = [], seen = new Set();
   const modes = a.ad > 0 ? [false,true] : [false];
-  for(const m of a.mults){
-    if(!m || m <= 0) continue;
+  const add = (m, grail) => {
+    if(!m || m <= 0) return;
     for(const useAd of modes){
       const v = effective(m, useAd, a);
       if(v <= 0) continue;
-      const k = m + "|" + useAd;
+      const k = m + "|" + useAd + "|" + (grail ? 1 : 0);
       if(seen.has(k)) continue;
       seen.add(k);
-      out.push({base:m, useAd:useAd, v:v});
+      out.push({base:m, useAd:useAd, grail:grail, v:v});
     }
-  }
+  };
+  for(const m of a.mults) add(m, false);
+  if(a.grail) for(const m of a.gmults) add(m, true);
   return out.sort((x,y)=>y.v-x.v);
 }
 function gcd(a,b){ while(b){ const t=a%b; a=b; b=t; } return a; }
@@ -667,7 +667,7 @@ function exactXs(a,b,R,cap,lo,hi){
 const MINC  = 3;    /* меньше трёх очков за один ход в игре не набрать */
 const SHOWN = 100;  /* сколько вариантов показываем, если их найдено больше */
 function keyOf(sol){
-  return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
+  return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+(m.grail?1:0)+":"+m.count).sort().join("|");
 }
 /* noAd = true -> искать только среди ходов без рекламы */
 function solve(a, noAd){
@@ -692,7 +692,7 @@ function solve(a, noAd){
   for(const v of vs){
     if(R % v.v === 0 && R/v.v >= MINC){
       res.total++;
-      push(res.exact, mk([{base:v.base,useAd:v.useAd,v:v.v,count:R/v.v}]));
+      push(res.exact, mk([{base:v.base,useAd:v.useAd,grail:v.grail,v:v.v,count:R/v.v}]));
     }
   }
   /* --- два хода: точные попадания --- */
@@ -707,8 +707,8 @@ function solve(a, noAd){
         const y = (R - A.v*x)/B.v;
         if(y < MINC) continue;
         push(res.exact, mk([
-          {base:A.base,useAd:A.useAd,v:A.v,count:x},
-          {base:B.base,useAd:B.useAd,v:B.v,count:y}
+          {base:A.base,useAd:A.useAd,grail:A.grail,v:A.v,count:x},
+          {base:B.base,useAd:B.useAd,grail:B.grail,v:B.v,count:y}
         ]));
         if(res.exact.length > 6000) break;
       }
@@ -727,7 +727,7 @@ function solve(a, noAd){
 const b64e = str => btoa(Array.from(new TextEncoder().encode(str), c=>String.fromCharCode(c)).join(""));
 const b64d = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64), c=>c.charCodeAt(0)));
 function packAcc(a){
-  const o = {n:a.name, m:a.mults, ad:a.ad, g:a.grail?1:0, gp:a.grailPct, c:num(a.cur), t:num(a.target)};
+  const o = {n:a.name, m:a.mults, gm:a.gmults, ad:a.ad, g:a.grail?1:0, c:num(a.cur), t:num(a.target)};
   return "KARAS1:" + b64e(JSON.stringify(o));
 }
 function unpackAcc(txt){
@@ -746,8 +746,8 @@ function unpackAcc(txt){
   const a = newAcc(o.n || o.name || "Импорт");
   a.mults = mults;
   a.ad = num(o.ad);
+  a.gmults = (o.gm || o.gmults || []).map(x=>Math.round(num(x))).filter(x=>x>0);
   a.grail = !!(o.g || o.grail);
-  a.grailPct = num(o.gp != null ? o.gp : o.grailPct);
   a.cur = num(o.c != null ? o.c : o.cur);
   a.target = num(o.t != null ? o.t : o.target);
   return a;
@@ -812,43 +812,51 @@ function renderTabs(){
   };
   el.appendChild(add);
 }
-function renderMults(){
-  const a = acc(), el = $("#mults");
+/* один и тот же список чипсов и для обычных множителей, и для граальных */
+function renderChips(list, elId, empty){
+  const el = $(elId);
   el.innerHTML = "";
-  if(!a.mults.length){
-    el.innerHTML = '<div style="color:var(--muted);font-size:12.5px">Множителей пока нет — добавьте ниже</div>';
+  if(!list.length){
+    el.innerHTML = '<div style="color:var(--muted);font-size:12.5px">' + empty + '</div>';
   }
-  a.mults.forEach((m,i)=>{
+  list.forEach((m,i)=>{
     const c = document.createElement("div");
     c.className = "chip";
     const inp = document.createElement("input");
     inp.type = "text"; inp.inputMode = "numeric"; inp.value = fmt(m);
-    inp.onfocus = ()=> inp.value = String(a.mults[i]);
+    inp.onfocus = ()=> inp.value = String(list[i]);
     inp.onblur = ()=>{
       const v = Math.round(num(inp.value));
-      a.mults[i] = v > 0 ? v : a.mults[i];
+      list[i] = v > 0 ? v : list[i];
       save(); renderMults(); renderEff(); calc();
     };
     inp.onkeydown = e => { if(e.key==="Enter") inp.blur(); };
     const x = document.createElement("button");
     x.className = "x"; x.innerHTML = "×"; x.title = "Удалить";
-    x.onclick = ()=>{ a.mults.splice(i,1); save(); renderMults(); renderEff(); calc(); };
+    x.onclick = ()=>{ list.splice(i,1); save(); renderMults(); renderEff(); calc(); };
     c.appendChild(inp); c.appendChild(x);
     el.appendChild(c);
   });
 }
+function renderMults(){
+  const a = acc();
+  renderChips(a.mults, "#mults", "Множителей пока нет — добавьте ниже");
+  renderChips(a.gmults, "#gmults", "Пока не заданы — добавьте ниже");
+}
 function renderEff(){
   const a = acc(), el = $("#eff"), btn = $("#b-eff");
-  btn.hidden = !a.mults.length;
-  el.hidden = !state.eff || !a.mults.length;
+  const rows = a.mults.map(m=>[m,false]).concat(a.grail ? a.gmults.map(m=>[m,true]) : []);
+  btn.hidden = !rows.length;
+  el.hidden = !state.eff || !rows.length;
   btn.textContent = state.eff ? "Скрыть подробности" : "Подробно";
   btn.setAttribute("aria-expanded", String(!!state.eff));
-  if(!a.mults.length){ el.innerHTML = ""; return; }
+  if(!rows.length){ el.innerHTML = ""; return; }
   const showAd = a.ad > 0;
-  let h = '<table><tr><th>Базовый КМ</th><th>без рекламы</th>' + (showAd?'<th>с рекламой</th>':'') + '</tr>';
-  a.mults.forEach(m=>{
-    h += '<tr><td>'+fmt(m)+'</td><td>'+fmt(effective(m,false,a))+'</td>'
-       + (showAd ? '<td class="ad">'+fmt(effective(m,true,a))+'</td>' : '') + '</tr>';
+  let h = '<table><tr><th>Множитель</th><th>без рекламы</th>' + (showAd?'<th>с рекламой</th>':'') + '</tr>';
+  rows.forEach(r=>{
+    h += '<tr><td>'+fmt(r[0]) + (r[1] ? ' <span style="color:#b9a6ff">грааль</span>' : '') + '</td>'
+       + '<td>'+fmt(effective(r[0],false,a))+'</td>'
+       + (showAd ? '<td class="ad">'+fmt(effective(r[0],true,a))+'</td>' : '') + '</tr>';
   });
   h += '</table>';
   el.innerHTML = h;
@@ -860,10 +868,8 @@ function renderForm(){
   $("#f-cur").value = showNum(a.cur);
   $("#f-target").value = showNum(a.target);
   $("#f-ad").value = showNum(a.ad);
-  $("#f-grailpct").value = a.grailPct ? String(a.grailPct) : "";
   segSet("#seg-grail", a.grail ? "1" : "0");
-  $("#wrap-grailpct").style.display = a.grail ? "" : "none";
-  refreshGrailHint();
+  $("#wrap-gmults").style.display = a.grail ? "" : "none";
   renderMults();
   renderEff();
   foldHints();
@@ -871,21 +877,13 @@ function renderForm(){
 function segSet(sel,val){
   document.querySelectorAll(sel+" button").forEach(b=>b.classList.toggle("on", b.dataset.v===val));
 }
-function refreshGrailHint(){
-  const a = acc();
-  const base = a.mults[0] || 60820;
-  $("#hint-grail").innerHTML = "Процент прибавляется к КМ <b>без рекламы</b>, бонус рекламы добавляется сверху."
-    + (a.grail && a.grailPct ? "<br>" + fmt(base) + " → <b>" + fmt(effective(base,false,a)) + "</b>"
-        + (a.ad>0 ? " → с рекламой <b>" + fmt(effective(base,true,a)) + "</b>" : "") : "");
-}
 function moveLine(i,m){
   const a = acc();
-  const grailOn = a.grail && a.grailPct;
   let chain = fmt(m.base);
-  if(m.useAd || grailOn) chain += " → " + fmt(m.v);
+  if(m.useAd) chain += " → " + fmt(m.v);
   return '<div class="step"><span class="n">'+(i+1)+'</span>'
     + '<span>КМ <span class="val">'+chain+'</span></span>'
-    + (grailOn ? '<span class="tag g">грааль +'+a.grailPct+'%</span>' : '')
+    + (m.grail ? '<span class="tag g">грааль</span>' : '')
     + (m.useAd ? '<span class="tag">реклама +'+fmt(a.ad)+'</span>' : '')
     + '<span>· очков за ход <span class="val">'+fmt(m.count)+'</span></span>'
     + '<span>· итого <span class="val">'+fmt(m.v*m.count)+'</span></span></div>';
@@ -977,10 +975,7 @@ function bindNum(sel, key, extra){
 }
 bindNum("#f-cur","cur");
 bindNum("#f-target","target");
-bindNum("#f-ad","ad", ()=>{ renderEff(); refreshGrailHint(); });
-$("#f-grailpct").addEventListener("input", ()=>{
-  acc().grailPct = num($("#f-grailpct").value); renderEff(); refreshGrailHint(); later();
-});
+bindNum("#f-ad","ad", ()=>{ renderEff(); });
 $("#f-name").addEventListener("input", ()=>{
   acc().name = $("#f-name").value; renderTabs(); clearTimeout(t); t = setTimeout(save,300);
 });
@@ -997,11 +992,20 @@ $("#b-addmult").onclick = ()=>{
   const el = $("#f-newmult"), v = Math.round(num(el.value));
   if(v > 0 && acc().mults.indexOf(v) === -1){
     acc().mults.push(v);                    /* порядок ввода не трогаем */
-    save(); renderMults(); renderEff(); refreshGrailHint(); calc();
+    save(); renderMults(); renderEff(); calc();
   }
   el.value = ""; el.focus();
 };
 $("#f-newmult").addEventListener("keydown", e=>{ if(e.key==="Enter") $("#b-addmult").click(); });
+$("#b-addgmult").onclick = ()=>{
+  const el = $("#f-newgmult"), v = Math.round(num(el.value));
+  if(v > 0 && acc().gmults.indexOf(v) === -1){
+    acc().gmults.push(v);
+    save(); renderMults(); renderEff(); calc();
+  }
+  el.value = ""; el.focus();
+};
+$("#f-newgmult").addEventListener("keydown", e=>{ if(e.key==="Enter") $("#b-addgmult").click(); });
 $("#b-eff").onclick = ()=>{ state.eff = !state.eff; save(); renderEff(); };
 $("#b-calc").onclick = ()=>{
   save(); calc();
@@ -1075,7 +1079,7 @@ function foldHints(){
   if(state.fold.bonus){
     const parts = [];
     if(num(a.ad)) parts.push("реклама +" + fmt(a.ad));
-    if(a.grail && num(a.grailPct)) parts.push("грааль +" + a.grailPct + "%");
+    if(a.grail) parts.push("грааль: " + (a.gmults.length ? a.gmults.length + " шт." : "не задан"));
     $("#hint-bonus").textContent = parts.length ? parts.join(" · ") : "нет";
   } else $("#hint-bonus").textContent = "";
 }
