@@ -231,7 +231,18 @@ input.name{font-family:inherit;font-weight:700}
 }
 .row:nth-child(even){background:rgba(255,255,255,.06)}
 .row:hover{background:rgba(242,181,68,.12)}
-.row .m{color:var(--gold2)}
+.row .m{color:var(--gold2);position:relative}
+/* значок висит над «x» и не занимает места в строке */
+.adm{
+  position:absolute;right:-7px;top:-1px;
+  display:grid;place-items:center;color:var(--gold);font-style:normal;
+}
+.adm svg{display:block}
+.adlegend{
+  display:flex;align-items:center;gap:7px;margin:-2px 0 11px 2px;
+  color:var(--muted);font-size:11.5px;font-weight:600;
+}
+.adlegend .adm{position:static;flex:none}
 .row .x{color:var(--muted);font-weight:400;padding:0 1px}
 .row .c{color:var(--txt)}
 .row .op{color:var(--muted);padding:0 12px;font-weight:400}
@@ -892,9 +903,13 @@ function moveLine(i,m){
     + '<span>· очков за ход <span class="val">'+fmt(m.count)+'</span></span>'
     + '<span>· итого <span class="val">'+fmt(m.v*m.count)+'</span></span></div>';
 }
+const AD_ICON = '<i class="adm" title="этот ход — с просмотром рекламы">'
+  + '<svg viewBox="0 0 10 10" width="6" height="6" aria-hidden="true">'
+  + '<path d="M2.4 1.5 8.2 5 2.4 8.5z" fill="currentColor"/></svg></i>';
 function rowHtml(s){
   const plain = s.moves.map(m=>m.v+"x"+m.count).join(" + ");
-  const term = m => '<span class="m">'+m.v+'</span><span class="x">x</span><span class="c">'+m.count+'</span>';
+  const term = m => '<span class="m">'+m.v+(m.useAd ? AD_ICON : '')+'</span>'
+                  + '<span class="x">x</span><span class="c">'+m.count+'</span>';
   let html = '<span>'+term(s.moves[0])+'</span>';
   html += s.moves[1] ? '<span class="op">+</span><span>'+term(s.moves[1])+'</span>'
                      : '<span class="op"></span><span></span>';
@@ -942,8 +957,10 @@ function calc(){
     return;
   }
   const full = state.view === "full";
+  const anyAd = !full && r.exact.some(s=>s.moves.some(m=>m.useAd));
   if(r.exact.length){
-    el.innerHTML = (full
+    el.innerHTML = (anyAd ? '<div class="adlegend">' + AD_ICON + '<span>— ход с просмотром рекламы</span></div>' : "")
+      + (full
       ? r.exact.map(solHtml).join("")
       : '<div class="rows">' + r.exact.map(rowHtml).join("") + '</div>')
       + (r.total > r.exact.length
