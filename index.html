@@ -223,6 +223,7 @@ input.name{font-family:inherit;font-weight:700}
 
 /* ---------- компактный список ---------- */
 .rows{display:grid;grid-template-columns:max-content max-content minmax(max-content,1fr);gap:4px 0}
+.rows.m3{grid-template-columns:max-content max-content max-content max-content minmax(max-content,1fr)}
 .row{
   display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;
   padding:12px 15px;border-radius:11px;cursor:pointer;transition:.12s;
@@ -445,7 +446,7 @@ input.name{font-family:inherit;font-weight:700}
 
       <div class="card fold" data-fold="mults">
         <h2><span class="ic">◆</span> Множители (КМ)
-          <span class="okpill" id="mark-mults" hidden><i>✓</i>Пара найдена</span>
+          <span class="okpill" id="mark-mults" hidden><i>✓</i><span>Пара найдена</span></span>
           <span class="h2-hint" id="hint-mults"></span><span class="chev">▾</span></h2>
         <div class="card-body">
           <button class="grail" id="b-grail" aria-pressed="false" type="button">
@@ -483,6 +484,13 @@ input.name{font-family:inherit;font-weight:700}
           <div class="field">
             <label>Сколько нужно набрать</label>
             <input type="text" inputmode="numeric" id="f-target" placeholder="например 152 681 196">
+          </div>
+          <div class="field">
+            <label>За сколько ходов набираем</label>
+            <div class="seg" id="seg-moves">
+              <button data-v="2">2 хода</button>
+              <button data-v="3">3 хода</button>
+            </div>
           </div>
         </div>
         <button class="btn gold wide" id="b-calc" style="margin-top:14px">Показать варианты</button>
@@ -595,6 +603,7 @@ const acc = () => state.accounts.find(a=>a.id===state.active) || state.accounts[
 let resTab = "all";
 if(state.view !== "full" && state.view !== "short") state.view = "short";
 state.eff = !!state.eff;   /* показана ли таблица эффективных КМ */
+if(state.moves !== 3) state.moves = 2;   /* за сколько ходов набираем */
 
 /* -------------------------------------------------------------- utilities */
 function num(v){
@@ -678,13 +687,75 @@ function exactXs(a,b,R,cap,lo,hi){
 }
 const MINC  = 3;    /* меньше трёх очков за один ход в игре не набрать */
 const SHOWN = 100;  /* сколько вариантов показываем, если их найдено больше */
+/* сначала варианты в меньшее число ходов, потом по сумме очков: чем крупнее
+   задействованные КМ, тем меньше очков придётся набирать. При равной сумме
+   вперёд идёт тот, где меньше очков за один ход. */
+function finish(res){
+  res.exact.sort((p,q)=> p.moves.length - q.moves.length || p.totC - q.totC || p.maxC - q.maxC);
+  res.exact = res.exact.slice(0, SHOWN);
+  /* для троек полное число раскладов не считаем — их слишком много */
+  if(res.moves === 3) res.total = res.exact.length;
+  return res;
+}
+
+/* Три хода: a*x + b*y + c*z = R, у каждого хода минимум MINC очков.
+   Подставим x = MINC+u и так далее — получится a*u + b*v + c*w = R'.
+   Сумма очков равна R'/a + v*(1 - b/a) + w*(1 - c/a) + 3*MINC, то есть
+   каждая единица v и w только увеличивает её. Значит, для каждого v нужен
+   наименьший w, при котором остаток делится на a: это обычное сравнение
+   c*w ≡ R' - b*v (mod a), решается через обратный элемент. Перебираем v
+   и отсекаем, как только нижняя граница суммы хуже уже найденных. */
+function solveTriples(a0, vs, R, res, push, mk){
+  const n = vs.length;
+  if(n < 3) return;
+  const cand = [];
+  let bound = Infinity;                 /* худшая сумма среди отобранных */
+  const trim = () => {
+    cand.sort((p,q)=> p.t - q.t || p.mx - q.mx);
+    if(cand.length > SHOWN) cand.length = SHOWN;
+    if(cand.length >= SHOWN) bound = cand[cand.length-1].t;
+  };
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) for(let k=j+1;k<n;k++){
+    const A = vs[i], B = vs[j], C = vs[k];          /* КМ идут по убыванию */
+    if(A.v === B.v || B.v === C.v || A.v === C.v) continue;
+    const av = A.v, bv = B.v, cv = C.v;
+    const Rp = R - MINC*(av + bv + cv);
+    if(Rp < 0) continue;
+    const g = gcd(cv, av), ap = av/g;
+    const inv = modinv((cv/g) % ap, ap);
+    if(inv === null) continue;
+    const floor0 = Rp/av + 3*MINC, step = 1 - bv/av;
+    for(let v = 0; ; v++){
+      if(floor0 + v*step > bound) break;            /* дальше только хуже */
+      const rem = Rp - bv*v;
+      if(rem < 0) break;
+      if(rem % g !== 0) continue;
+      const w0 = (((rem/g) % ap) * inv) % ap;
+      /* w можно увеличивать на ap — сумма при этом растёт, поэтому идём,
+         пока расклад не станет хуже уже отобранных */
+      for(let w = w0; cv*w <= rem; w += ap){
+        const u = (rem - cv*w)/av;
+        const x = MINC + u, y = MINC + v, z = MINC + w;
+        const t = x + y + z;
+        if(t > bound) break;
+        cand.push({t:t, mx:Math.max(x,y,z), m:[[A,x],[B,y],[C,z]]});
+        if(cand.length > SHOWN*4) trim();
+        if(ap === 0) break;
+      }
+    }
+  }
+  trim();
+  for(const c of cand)
+    push(res.exact, mk(c.m.map(p2=>({base:p2[0].base, useAd:p2[0].useAd, v:p2[0].v, count:p2[1]}))));
+}
 function keyOf(sol){
   return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
 }
 /* noAd = true -> искать только среди ходов без рекламы */
-function solve(a, noAd){
+function solve(a, noAd, moves){
+  moves = moves === 3 ? 3 : 2;
   const R = Math.max(0, Math.round(num(a.target)) - Math.round(num(a.cur)));
-  const res = { R:R, exact:[], total:0 };
+  const res = { R:R, exact:[], total:0, moves:moves };
   if(R <= 0) return res;
   let vs = variants(a);
   if(noAd) vs = vs.filter(v=>!v.useAd);
@@ -699,6 +770,8 @@ function solve(a, noAd){
              maxC: moves.reduce((s,m)=>Math.max(s,m.count),0),
              totC: moves.reduce((s,m)=>s+m.count,0) };
   };
+
+  if(moves === 3){ solveTriples(a, vs, R, res, push, mk); return finish(res); }
 
   /* --- один ход --- */
   for(const v of vs){
@@ -727,12 +800,7 @@ function solve(a, noAd){
     }
     if(res.exact.length > 6000) break;
   }
-  /* сначала варианты в один ход, потом парные — от меньшей суммы очков за оба
-     хода: чем крупнее задействованные КМ, тем меньше очков придётся набирать.
-     При равной сумме вперёд идёт тот, где меньше очков за один ход. */
-  res.exact.sort((p,q)=> p.moves.length - q.moves.length || p.totC - q.totC || p.maxC - q.maxC);
-  res.exact = res.exact.slice(0, SHOWN);
-  return res;
+  return finish(res);
 }
 
 /* --------------------------------------------------- обмен аккаунтами */
@@ -886,6 +954,7 @@ function renderForm(){
   $("#f-cur").value = showNum(a.cur);
   $("#f-target").value = showNum(a.target);
   $("#f-ad").value = showNum(a.ad);
+  segSet("#seg-moves", String(state.moves));
   renderMults();
   renderEff();
   foldHints();
@@ -906,13 +975,15 @@ function moveLine(i,m){
 const AD_ICON = '<i class="adm" title="этот ход — с просмотром рекламы">'
   + '<svg viewBox="0 0 10 10" width="6" height="6" aria-hidden="true">'
   + '<path d="M2.4 1.5 8.2 5 2.4 8.5z" fill="currentColor"/></svg></i>';
-function rowHtml(s){
+function rowHtml(s, cols){
   const plain = s.moves.map(m=>m.v+"x"+m.count).join(" + ");
   const term = m => '<span class="m">'+m.v+(m.useAd ? AD_ICON : '')+'</span>'
                   + '<span class="x">x</span><span class="c">'+m.count+'</span>';
   let html = '<span>'+term(s.moves[0])+'</span>';
-  html += s.moves[1] ? '<span class="op">+</span><span>'+term(s.moves[1])+'</span>'
-                     : '<span class="op"></span><span></span>';
+  for(let i=1;i<cols;i++){
+    html += s.moves[i] ? '<span class="op">+</span><span>'+term(s.moves[i])+'</span>'
+                       : '<span class="op"></span><span></span>';
+  }
   return '<div class="row" data-copy="'+escapeHtml(plain)+'" title="Нажмите, чтобы скопировать">'+html+'</div>';
 }
 function solHtml(s){
@@ -927,15 +998,16 @@ function solHtml(s){
 }
 function calc(){
   const a = acc();
-  const all  = solve(a, false);
-  const noad = a.ad > 0 ? solve(a, true) : all;
+  const all  = solve(a, false, state.moves);
+  const noad = a.ad > 0 ? solve(a, true, state.moves) : all;
   const R = all.R;
   $("#s-left").textContent = fmt(R);
   $("#s-target").textContent = fmt(Math.round(num(a.target)));
   $("#c-all").textContent  = "(" + all.total  + ")";
   $("#c-noad").textContent = "(" + noad.total + ")";
   document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.classList.toggle("on", b.dataset.t===resTab));
-  const hasPair = all.exact.some(s=>s.moves.length === 2);
+  const hasPair = all.exact.some(s=>s.moves.length === state.moves);
+  $("#mark-mults").querySelector("span").textContent = state.moves === 3 ? "Тройка найдена" : "Пара найдена";
   $("#mark-mults").hidden = !hasPair;
   foldHints();
   $("#b-view").classList.toggle("on", state.view === "full");
@@ -958,17 +1030,26 @@ function calc(){
   }
   const full = state.view === "full";
   const anyAd = !full && r.exact.some(s=>s.moves.some(m=>m.useAd));
+  const cols = r.exact.reduce((n,s)=>Math.max(n, s.moves.length), 1);
   if(r.exact.length){
     el.innerHTML = (anyAd ? '<div class="adlegend">' + AD_ICON + '<span>— ход с просмотром рекламы</span></div>' : "")
       + (full
       ? r.exact.map(solHtml).join("")
-      : '<div class="rows">' + r.exact.map(rowHtml).join("") + '</div>')
+      : '<div class="rows' + (cols > 2 ? " m3" : "") + '">'
+        + r.exact.map(s=>rowHtml(s, cols)).join("") + '</div>')
       + (r.total > r.exact.length
           ? '<div class="note">Показаны ' + fmt(r.exact.length) + ' самых выгодных вариантов из '
             + fmt(r.total) + ' — в них нужно набрать меньше всего очков суммарно.</div>'
-          : "");
+          : (state.moves === 3 && r.exact.length >= SHOWN
+              ? '<div class="note">Показаны ' + fmt(r.exact.length) + ' самых выгодных раскладов —'
+                + ' в них нужно набрать меньше всего очков суммарно. Всего троек существует больше.</div>'
+              : ""));
   } else {
-    el.innerHTML = '<div class="empty"><span class="big">∅</span>Точных вариантов за два хода нет.<br>Проверьте цель и множители.</div>';
+    el.innerHTML = '<div class="empty"><span class="big">∅</span>Точных вариантов за '
+      + (state.moves === 3 ? "три хода" : "два хода") + ' нет.<br>'
+      + (state.moves === 3 && mults(a).length < 3
+          ? 'Для трёх ходов нужно минимум три разных множителя.'
+          : 'Проверьте цель и множители.') + '</div>';
   }
   el.querySelectorAll("[data-copy]").forEach(b=>{
     b.onclick = ()=>{
@@ -1007,6 +1088,11 @@ $("#b-grail").onclick = ()=>{
   save(); renderMults(); renderEff(); calc();
 };
 document.querySelectorAll("#rtabs button[data-t]").forEach(b=>b.onclick = ()=>{ resTab = b.dataset.t; calc(); });
+document.querySelectorAll("#seg-moves button").forEach(b=>b.onclick = ()=>{
+  state.moves = Number(b.dataset.v) === 3 ? 3 : 2;
+  segSet("#seg-moves", String(state.moves));
+  save(); calc();
+});
 $("#b-view").onclick = ()=>{
   state.view = state.view === "full" ? "short" : "full";
   save(); calc();
