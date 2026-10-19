@@ -188,6 +188,17 @@ input.name{font-family:inherit;font-weight:700}
   margin-top:11px;padding:8px 13px;font-size:12px;color:var(--muted);
   background:transparent;font-weight:600;
 }
+.minirow{display:flex;gap:8px;flex-wrap:wrap}
+#b-clear{margin-bottom:14px}
+.inwrap{position:relative}
+.inwrap input{padding-right:86px}
+.inbtn{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  padding:6px 11px;border-radius:8px;border:1px solid var(--line);
+  background:rgba(0,0,0,.35);color:var(--muted);cursor:pointer;
+  font:600 11px "Manrope",sans-serif;transition:.15s;
+}
+.inbtn:hover{color:var(--txt);border-color:var(--line2)}
 .eff-btn:hover{color:var(--txt)}
 .eff{margin-top:12px;border-top:1px dashed var(--line);padding-top:11px}
 .eff table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:15px}
@@ -457,7 +468,10 @@ input.name{font-family:inherit;font-weight:700}
             <input type="text" inputmode="numeric" id="f-newmult" placeholder="Новый множитель">
             <button class="btn gold" id="b-addmult">Добавить</button>
           </div>
-          <button class="btn eff-btn" id="b-eff" aria-expanded="false">Подробно</button>
+          <div class="minirow">
+            <button class="btn eff-btn" id="b-eff" aria-expanded="false">Подробно</button>
+            <button class="btn eff-btn" id="b-pastemults" type="button">Вставить список</button>
+          </div>
           <div class="eff" id="eff" hidden></div>
         </div>
       </div>
@@ -479,12 +493,19 @@ input.name{font-family:inherit;font-weight:700}
         <div class="card-body">
           <div class="field">
             <label>Уже набрано</label>
-            <input type="text" inputmode="numeric" id="f-cur" placeholder="0">
+            <div class="inwrap">
+              <input type="text" inputmode="numeric" id="f-cur" placeholder="0">
+              <button class="inbtn" id="p-cur" type="button" title="Вставить число из буфера">вставить</button>
+            </div>
           </div>
           <div class="field">
             <label>Сколько нужно набрать</label>
-            <input type="text" inputmode="numeric" id="f-target" placeholder="например 152 681 196">
+            <div class="inwrap">
+              <input type="text" inputmode="numeric" id="f-target" placeholder="например 152 681 196">
+              <button class="inbtn" id="p-target" type="button" title="Вставить число из буфера">вставить</button>
+            </div>
           </div>
+          <button class="btn eff-btn" id="b-clear" type="button">Очистить очки</button>
           <div class="field">
             <label>За сколько ходов набираем</label>
             <div class="seg" id="seg-moves">
@@ -1157,6 +1178,68 @@ $("#b-importall").onclick = ()=>{
     state.active = state.accounts[state.accounts.length-1].id;
     save(); renderAll(); toast("Добавлено аккаунтов: " + n);
   });
+};
+
+/* --- вставка из буфера --- */
+/* Разбираем числа из текста. Запятые и переносы — всегда разделители.
+   Внутри куска «60 820 43 677» группы ровно по три цифры считаем разрядами
+   одного числа, а «60820 43677» — двумя разными числами. */
+function parseNumbers(text){
+  const out = [];
+  String(text == null ? "" : text).split(/[\n\r,;]+/).forEach(part=>{
+    const groups = part.match(/\d+/g);
+    if(!groups) return;
+    let buf = "";
+    const flush = ()=>{ if(buf){ const n = Number(buf); if(n > 0 && isFinite(n)) out.push(n); buf = ""; } };
+    groups.forEach(g=>{
+      if(buf && g.length === 3) buf += g;
+      else { flush(); buf = g; }
+    });
+    flush();
+  });
+  return out;
+}
+/* Берём текст из буфера. Если браузер не отдаёт — показываем окно для вставки руками. */
+function fromClipboard(title, hint, apply){
+  const run = t => { if(t != null) apply(String(t)); };
+  if(navigator.clipboard && navigator.clipboard.readText){
+    navigator.clipboard.readText()
+      .then(t => { if(t && t.trim()) run(t); else modal(title, hint, "", false, run); })
+      .catch(()=> modal(title, hint, "", false, run));
+  } else modal(title, hint, "", false, run);
+}
+function pasteInto(key, el, label){
+  fromClipboard("Вставить " + label, "Браузер не дал доступ к буферу — вставьте число сюда.", txt=>{
+    const n = parseNumbers(txt)[0];
+    if(!n){ toast("В буфере нет числа"); return; }
+    acc()[key] = n;
+    el.value = fmt(n);
+    save(); calc(); foldHints();
+    toast(label[0].toUpperCase() + label.slice(1) + ": " + fmt(n));
+  });
+}
+$("#p-cur").onclick    = ()=> pasteInto("cur",    $("#f-cur"),    "набранные очки");
+$("#p-target").onclick = ()=> pasteInto("target", $("#f-target"), "цель");
+
+$("#b-clear").onclick = ()=>{
+  const a = acc();
+  a.cur = 0; a.target = 0;
+  $("#f-cur").value = ""; $("#f-target").value = "";
+  save(); calc(); foldHints();
+  toast("Очки очищены");
+};
+
+$("#b-pastemults").onclick = ()=>{
+  fromClipboard("Вставить множители",
+    "Браузер не дал доступ к буферу — вставьте список сюда. Числа можно через пробел, запятую или с новой строки.",
+    txt=>{
+      const list = mults(acc()), add = parseNumbers(txt);
+      if(!add.length){ toast("В буфере нет чисел"); return; }
+      let n = 0;
+      add.forEach(v=>{ const m = Math.round(v); if(m > 0 && list.indexOf(m) === -1){ list.push(m); n++; } });
+      save(); renderMults(); renderEff(); calc();
+      toast(n ? "Добавлено множителей: " + n : "Все эти множители уже есть");
+    });
 };
 
 /* --- сворачивание карточек-настроек --- */
