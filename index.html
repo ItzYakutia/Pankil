@@ -1201,14 +1201,34 @@ function parseNumbers(text){
   });
   return out;
 }
-/* Берём текст из буфера. Если браузер не отдаёт — показываем окно для вставки руками. */
+/* Чтение буфера кнопкой браузер разрешает не всегда и может спрашивать каждый
+   раз. Если он отказал — больше не дёргаем его за сеанс, сразу показываем окно. */
+let clipOk = null;                       /* null — не знаем, false — отказано */
+if(navigator.permissions && navigator.permissions.query){
+  try{
+    navigator.permissions.query({name:"clipboard-read"}).then(p=>{
+      const set = ()=>{ clipOk = p.state === "denied" ? false : null; };
+      set(); p.onchange = set;
+    }).catch(()=>{});
+  }catch(e){}
+}
 function fromClipboard(title, hint, apply){
   const run = t => { if(t != null) apply(String(t)); };
-  if(navigator.clipboard && navigator.clipboard.readText){
-    navigator.clipboard.readText()
-      .then(t => { if(t && t.trim()) run(t); else modal(title, hint, "", false, run); })
-      .catch(()=> modal(title, hint, "", false, run));
-  } else modal(title, hint, "", false, run);
+  const byHand = ()=> modal(title, hint, "", false, run);
+  if(clipOk === false || !(navigator.clipboard && navigator.clipboard.readText)){ byHand(); return; }
+  navigator.clipboard.readText()
+    .then(t => { clipOk = true; if(t && t.trim()) run(t); else byHand(); })
+    .catch(()=>{ clipOk = false; byHand(); });
+}
+/* Обычная вставка прямо в поле — никаких разрешений не требует вовсе */
+function bindPaste(sel, apply){
+  $(sel).addEventListener("paste", e=>{
+    const data = e.clipboardData || window.clipboardData;
+    const n = data ? parseNumbers(data.getData("text"))[0] : 0;
+    if(!n) return;                       /* не число — пусть вставится как есть */
+    e.preventDefault();
+    apply(Math.round(n));
+  });
 }
 function pasteInto(key, el, label){
   fromClipboard("Вставить " + label, "Браузер не дал доступ к буферу — вставьте число сюда.", txt=>{
@@ -1222,6 +1242,14 @@ function pasteInto(key, el, label){
 }
 $("#p-cur").onclick    = ()=> pasteInto("cur",    $("#f-cur"),    "набранные очки");
 $("#p-target").onclick = ()=> pasteInto("target", $("#f-target"), "цель");
+
+bindPaste("#f-cur", n=>{
+  acc().cur = n; $("#f-cur").value = fmt(n); save(); calc(); foldHints();
+});
+bindPaste("#f-target", n=>{
+  acc().target = n; $("#f-target").value = fmt(n); save(); calc(); foldHints();
+});
+bindPaste("#f-newmult", n=>{ $("#f-newmult").value = String(n); });
 
 function clearField(key, el){
   acc()[key] = 0;
