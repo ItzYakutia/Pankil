@@ -714,62 +714,77 @@ const SHOWN = 100;  /* сколько вариантов показываем, �
    задействованные КМ, тем меньше очков придётся набирать. При равной сумме
    вперёд идёт тот, где меньше очков за один ход. */
 function finish(res){
-  res.exact.sort((p,q)=> p.moves.length - q.moves.length || p.totC - q.totC || p.maxC - q.maxC);
+  res.exact.sort((p,q)=> p.moves.length - q.moves.length
+    || (q.big || 0) - (p.big || 0)                       /* сначала самый высокий КМ */
+    || (p.ease || 0) - (q.ease || 0) || (p.small || 0) - (q.small || 0)
+    || p.totC - q.totC || p.maxC - q.maxC);
   res.exact = res.exact.slice(0, SHOWN);
   /* для троек полное число раскладов не считаем — их слишком много */
   if(res.moves === 3) res.total = res.exact.length;
   return res;
 }
 
-/* Три хода: a*x + b*y + c*z = R, у каждого хода минимум MINC очков.
-   Подставим x = MINC+u и так далее — получится a*u + b*v + c*w = R'.
-   Сумма очков равна R'/a + v*(1 - b/a) + w*(1 - c/a) + 3*MINC, то есть
-   каждая единица v и w только увеличивает её. Значит, для каждого v нужен
-   наименьший w, при котором остаток делится на a: это обычное сравнение
-   c*w ≡ R' - b*v (mod a), решается через обратный элемент. Перебираем v
-   и отсекаем, как только нижняя граница суммы хуже уже найденных. */
+/* Насколько легко набрать столько очков за один ход: проще всего кратные
+   трём и десяти (3, 6, 9, 10, 12, 15, 18…), затем чётные, затем остальные. */
+function easeRank(c){
+  if(c % 3 === 0 || c % 10 === 0) return 0;
+  if(c % 2 === 0) return 1;
+  return 2;
+}
+const SMALL_MAX = 400;          /* докуда ход считается маленьким */
+let SMALL_LIST = null;
+function smallCounts(){
+  if(SMALL_LIST) return SMALL_LIST;
+  SMALL_LIST = [];
+  for(let c = MINC; c <= SMALL_MAX; c++) SMALL_LIST.push(c);
+  SMALL_LIST.sort((p,q)=> easeRank(p) - easeRank(q) || p - q);
+  return SMALL_LIST;
+}
+
+/* Три хода в формате «крупный множитель забирает основное, два маленьких хода».
+   Перебираем маленькие ходы: множитель и очки первого берём из списка, а очки
+   второго не подбираем перебором — они однозначно считаются из сравнения
+   c*z ≡ R - b*y (mod a), где a — крупный множитель. Остаток обязан делиться
+   на a нацело, это и даёт крупный ход. */
 function solveTriples(a0, vs, R, res, push, mk){
   const n = vs.length;
-  if(n < 3) return;
-  const cand = [];
-  let bound = Infinity;                 /* худшая сумма среди отобранных */
-  const trim = () => {
-    cand.sort((p,q)=> p.t - q.t || p.mx - q.mx);
-    if(cand.length > SHOWN) cand.length = SHOWN;
-    if(cand.length >= SHOWN) bound = cand[cand.length-1].t;
-  };
-  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) for(let k=j+1;k<n;k++){
-    const A = vs[i], B = vs[j], C = vs[k];          /* КМ идут по убыванию */
-    if(A.v === B.v || B.v === C.v || A.v === C.v) continue;
-    const av = A.v, bv = B.v, cv = C.v;
-    const Rp = R - MINC*(av + bv + cv);
-    if(Rp < 0) continue;
-    const g = gcd(cv, av), ap = av/g;
-    const inv = modinv((cv/g) % ap, ap);
-    if(inv === null) continue;
-    const floor0 = Rp/av + 3*MINC, step = 1 - bv/av;
-    for(let v = 0; ; v++){
-      if(floor0 + v*step > bound) break;            /* дальше только хуже */
-      const rem = Rp - bv*v;
-      if(rem < 0) break;
-      if(rem % g !== 0) continue;
-      const w0 = (((rem/g) % ap) * inv) % ap;
-      /* w можно увеличивать на ap — сумма при этом растёт, поэтому идём,
-         пока расклад не станет хуже уже отобранных */
-      for(let w = w0; cv*w <= rem; w += ap){
-        const u = (rem - cv*w)/av;
-        const x = MINC + u, y = MINC + v, z = MINC + w;
-        const t = x + y + z;
-        if(t > bound) break;
-        cand.push({t:t, mx:Math.max(x,y,z), m:[[A,x],[B,y],[C,z]]});
-        if(cand.length > SHOWN*4) trim();
-        if(ap === 0) break;
+  if(!n) return;
+  const bigs = Math.min(n, 6);           /* крупный ход — один из самых больших КМ */
+  const counts = smallCounts();
+  for(let i = 0; i < bigs; i++){
+    const A = vs[i], av = A.v;
+    for(let j = 0; j < n; j++){
+      const B = vs[j];
+      for(let k = 0; k < n; k++){
+        const C = vs[k];
+        const g = gcd(C.v, av), ap = av/g;
+        const inv = modinv((C.v/g) % ap, ap);
+        if(inv === null) continue;
+        for(const y of counts){
+          const rem = R - B.v*y;
+          if(rem <= 0) continue;
+          if(rem % g !== 0) continue;
+          let z = (((rem/g) % ap) * inv) % ap;
+          if(z < MINC) z += Math.ceil((MINC - z)/ap) * ap;
+          if(z > SMALL_MAX) continue;
+          const left = rem - C.v*z;
+          if(left <= 0 || left % av !== 0) continue;
+          const x = left/av;
+          if(x < MINC) continue;
+          const sol = mk([
+            {base:A.base, useAd:A.useAd, v:av,   count:x},
+            {base:B.base, useAd:B.useAd, v:B.v,  count:y},
+            {base:C.base, useAd:C.useAd, v:C.v,  count:z}
+          ]);
+          sol.big   = av;                      /* чем выше множитель крупного хода, тем лучше */
+          sol.ease  = easeRank(y) + easeRank(z);
+          sol.small = y + z;
+          push(res.exact, sol);
+          if(res.exact.length > 6000) return;
+        }
       }
     }
   }
-  trim();
-  for(const c of cand)
-    push(res.exact, mk(c.m.map(p2=>({base:p2[0].base, useAd:p2[0].useAd, v:p2[0].v, count:p2[1]}))));
 }
 function keyOf(sol){
   return sol.moves.map(m=>m.base+":"+(m.useAd?1:0)+":"+m.count).sort().join("|");
@@ -1064,15 +1079,13 @@ function calc(){
           ? '<div class="note">Показаны ' + fmt(r.exact.length) + ' самых выгодных вариантов из '
             + fmt(r.total) + ' — в них нужно набрать меньше всего очков суммарно.</div>'
           : (state.moves === 3 && r.exact.length >= SHOWN
-              ? '<div class="note">Показаны ' + fmt(r.exact.length) + ' самых выгодных раскладов —'
-                + ' в них нужно набрать меньше всего очков суммарно. Всего троек существует больше.</div>'
+              ? '<div class="note">Крупный ход на самом высоком множителе забирает основное, '
+                + 'два оставшихся — самые лёгкие по очкам: сначала кратные 3 и 10, потом чётные.</div>'
               : ""));
   } else {
     el.innerHTML = '<div class="empty"><span class="big">∅</span>Точных вариантов за '
       + (state.moves === 3 ? "три хода" : "два хода") + ' нет.<br>'
-      + (state.moves === 3 && mults(a).length < 3
-          ? 'Для трёх ходов нужно минимум три разных множителя.'
-          : 'Проверьте цель и множители.') + '</div>';
+      + 'Проверьте цель и множители.</div>';
   }
   el.querySelectorAll("[data-copy]").forEach(b=>{
     b.onclick = ()=>{
